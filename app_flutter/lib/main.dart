@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-// Services
+import 'providers/usuario_provider.dart';
 import 'services/auth_service.dart';
-
-// Pages
 import 'pages/login_page.dart';
 import 'pages/dashboard_guardia.dart';
 import 'pages/bitacora_page.dart';
@@ -26,6 +24,7 @@ class SeguridadApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<AuthService>(create: (_) => AuthService()),
+        ChangeNotifierProvider<UsuarioProvider>(create: (_) => UsuarioProvider()),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -67,7 +66,8 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthService>(context);
 
-    if (auth.isLoggedIn) {
+    if (auth.isLoggedIn && !auth.sesionExpirada) {
+      auth.refreshSession();
       return const DashboardGuardia();
     } else {
       return const LoginPage();
