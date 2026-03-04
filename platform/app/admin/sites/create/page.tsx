@@ -1,0 +1,22 @@
+import { CreateSiteForm } from "@/components/admin/sites/CreateSiteForm"
+import Link from "next/link"
+import { ArrowLeft } from "lucide-react"
+
+export default function CreateSitePage() {
+    return (
+        <div className="max-w-2xl mx-auto">
+            <div className="mb-6">
+                <Link href="/admin/sites" className="text-sm text-muted hover:text-slate-900 flex items-center mb-2">
+                    <ArrowLeft className="w-4 h-4 mr-1" />
+                    Back to Sites
+                </Link>
+                <h1 className="heading-2">Create New Site</h1>
+                <p className="text-muted">Define a new physical location for security operations.</p>
+            </div>
+
+            <div className="card">
+                <CreateSiteForm />
+            </div>
+        </div>
+    )
+}

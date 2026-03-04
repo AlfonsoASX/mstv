@@ -1,0 +1,86 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  name      String
+  role      String   @default("GUARD") // ADMIN, SUPERVISOR, GUARD, HR, CLIENT
+  photoUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shifts    Shift[]
+  checkIns  CheckIn[]
+  incidents Incident[]
+}
+
+model Site {
+  id             String   @id @default(cuid())
+  name           String
+  latitude       Float
+  longitude      Float
+  geofenceRadius Float    @default(50.0) // in meters
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  shifts    Shift[]
+  incidents Incident[]
+}
+
+model Shift {
+  id         String   @id @default(cuid())
+  userId     String
+  siteId     String
+  startTime  DateTime
+  endTime    DateTime
+  isOvertime Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id])
+  site     Site      @relation(fields: [siteId], references: [id])
+  checkIns CheckIn[]
+}
+
+model CheckIn {
+  id        String   @id @default(cuid())
+  userId    String
+  shiftId   String?
+  timestamp DateTime @default(now())
+  type      String   // IN, OUT
+  latitude  Float
+  longitude Float
+  photoUrl  String?
+  status    String   @default("VALID") // VALID, REJECTED
+  createdAt DateTime @default(now())
+
+  user  User   @relation(fields: [userId], references: [id])
+  shift Shift? @relation(fields: [shiftId], references: [id])
+}
+
+model Incident {
+  id          String   @id @default(cuid())
+  userId      String
+  siteId      String
+  type        String   // SECURITY, OPERATION, CLIENT
+  priority    String   // LOW, MEDIUM, HIGH, URGENT
+  description String
+  photoUrl    String?
+  status      String   @default("PENDING") // PENDING, ATTENDED, CLOSED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+  site Site @relation(fields: [siteId], references: [id])
+}
