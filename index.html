@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MSTV Seguridad Privada para Fraccionamientos</title>
+<meta name="description" content="Seguridad para fraccionamientos y condominios en León y Bajío. Control de accesos, rondines y supervisión 24/7. +2,000 casas atendidas." />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gold:#c9a227; --gold-2:#e7c765; --gold-3:#8a6b00;
+    --text:#2b2f39; --muted:#6b7280; --ink:#111318;
+    --line:#eaeef3; --card:#ffffff; --bg:#ffffff; --soft:#f7f9fb;
+    --mx-green:#00843d; --mx-red:#ce1126;
+    --radius:18px;
+    --shadow:0 6px 18px rgba(18,24,40,.06),0 1px 0 rgba(18,24,40,.02);
+    --shadow-strong:0 14px 40px rgba(18,24,40,.12);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;scroll-behavior:smooth}
+  img{max-width:100%;display:block}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1140px;margin:auto;padding:64px 18px}
+  h1,h2,h3{margin:0 0 10px}
+  h1{font-size:clamp(32px,6vw,56px);line-height:1.05;letter-spacing:-.02em}
+  h2{font-size:clamp(24px,4.2vw,36px)}
+  p{margin:0 0 10px;line-height:1.7}
+
+  /* NAV */
+  .nav{position:sticky;top:0;z-index:60;background:rgba(255,255,255,.85);backdrop-filter:saturate(140%) blur(8px);border-bottom:1px solid var(--line)}
+  .nav .inner{max-width:1140px;margin:auto;display:flex;align-items:center;gap:10px;padding:10px 14px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800}
+  .brand img{width:40px;height:40px;object-fit:contain}
+  .navlinks{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+  .navlinks a{padding:10px 12px;border-radius:999px;border:1px solid transparent;font-weight:600;color:#3b3f47}
+  .navlinks a:hover{background:var(--soft)}
+  .cta{background:linear-gradient(135deg,var(--gold),var(--gold-2));color:#201700;border-color:#f0e6bd}
+
+  /* HERO */
+  header.hero{position:relative;min-height:75vh;display:grid;place-items:center;overflow:hidden}
+  .hero .bg{position:absolute;inset:0;background:url('assets/img/1.png') center/cover no-repeat}
+  .hero .veil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.70),rgba(255,255,255,.94))}
+  .hero .content{position:relative;z-index:2;padding:0 18px;text-align:center}
+  .sub{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:#fff;box-shadow:var(--shadow);font-size:.9rem;color:#4b5563}
+  .actions{display:flex;justify-content:center;gap:10px;margin-top:16px;flex-wrap:wrap}
+  .btn{display:inline-block;padding:12px 18px;border-radius:14px;border:1px solid var(--line);background:#fff;font-weight:800}
+  .btn.gold{background:linear-gradient(135deg,var(--gold),var(--gold-2));color:#231a00;border-color:#f0e6bd;box-shadow:0 10px 28px rgba(201,162,39,.25)}
+  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}
+  .kpi{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:var(--shadow)}
+  .kpi b{font-size:1.25rem;color:#0f172a}
+
+
+  /* Section title */
+  .section-title{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+  .section-title .bar{width:10px;height:10px;border-radius:3px;background:linear-gradient(135deg,var(--gold-2),var(--gold))}
+  .muted{color:var(--muted)}
+
+  /* Cards */
+  .cards{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);transition:transform .25s ease, box-shadow .25s ease;cursor:pointer;position:relative;overflow:hidden}
+  .card:hover{transform:translateY(-3px);box-shadow:var(--shadow-strong)}
+  .card h3{margin-bottom:6px}
+  .chip{display:inline-block;font-size:.78rem;padding:.24rem .5rem;border:1px solid var(--line);border-radius:999px;background:var(--soft);color:#4b5563}
+
+  /* Grids */
+  .grid-2{display:grid;gap:18px}
+  @media(min-width:900px){ .grid-2{grid-template-columns:1.15fr .85fr} }
+
+  /* Strip */
+  .strip{background:linear-gradient(90deg,var(--mx-green),#ffffff 50%,var(--mx-red));color:#0f172a}
+  .strip .wrap{padding:12px 18px}
+  .strip small b{color:#111}
+
+  /* Bullets */
+  .bullets{display:grid;gap:8px}
+  .bullet{display:flex;gap:10px;align-items:flex-start}
+  .tick{width:22px;height:22px;flex:0 0 22px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-2));display:grid;place-items:center;color:#221a00;font-weight:900}
+
+  /* Testimonials */
+  .testi{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+  .quote{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow);position:relative}
+  .quote:before{content:"“";position:absolute;left:14px;top:-10px;font-size:44px;color:#e9e4c6;pointer-events:none}
+
+  /* Contacto */
+  form{display:grid;gap:10px}
+  input,textarea{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:#fff;outline:none}
+  textarea{min-height:120px;resize:vertical}
+  .submit{padding:12px 16px;border-radius:14px;border:1px solid #f0e6bd;background:linear-gradient(135deg,var(--gold),var(--gold-2));color:#231a00;font-weight:800;cursor:pointer}
+  .form-row{display:grid;gap:10px}
+  @media(min-width:720px){ .form-row{grid-template-columns:1fr 1fr} }
+
+  footer{background:#fff;border-top:1px solid var(--line)}
+  .foot{display:grid;gap:10px}
+  @media(min-width:900px){ .foot{grid-template-columns:1fr 1fr} }
+
+  /* ----- DARK PARALLAX SECTIONS ----- */
+  .section-dark{position:relative;color:#f3f4f6}
+  .section-dark .wrap{position:relative;z-index:2}
+  .section-dark .bg{position:absolute;inset:0;background-size:cover;background-position:center;transform:translateZ(0)}
+  .section-dark .veil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.5),rgba(0,0,0,.85))}
+  .section-dark .section-title .bar{background:linear-gradient(135deg,var(--gold),var(--gold-2))}
+  .section-dark .muted{color:#cbd5e1}
+  .card.on-dark{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);color:#fff}
+  .card.on-dark .chip{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#e5e7eb}
+  .card.on-dark:hover{box-shadow:0 14px 40px rgba(0,0,0,.5)}
+  .divider-line{height:1px;background:linear-gradient(90deg,transparent,var(--gold) 40% 60%,transparent);opacity:.5;margin:12px 0}
+
+  /* Modal */
+  .modal-overlay{position:fixed;inset:0;background:rgba(17,19,24,.5);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:1000;padding:16px}
+  .modal{width:min(720px,100%);background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow-strong);overflow:hidden}
+  .modal header{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .modal header h3{margin:0}
+  .modal .body{padding:16px}
+  .modal .actions{display:flex;gap:10px;justify-content:flex-end;padding:14px 16px;border-top:1px solid var(--line)}
+  .x{border:none;background:transparent;font-size:20px;line-height:1;cursor:pointer;color:#6b7280}
+  .btn.cta{background:linear-gradient(135deg,var(--gold),var(--gold-2));color:#231a00;border:1px solid #f0e6bd}
+  .modal-overlay.show{display:flex}
+
+  /* Reveal */
+  [data-reveal]{opacity:0;transform:translateY(14px);transition:opacity .5s ease, transform .6s cubic-bezier(.2,.65,.2,1)}
+  [data-reveal].show{opacity:1;transform:none}
+
+  /* Sticky CTA (móvil) */
+  .sticky-cta{position:fixed;left:0;right:0;bottom:12px;z-index:55;display:flex;justify-content:center;pointer-events:none}
+  .sticky-cta a{pointer-events:auto;background:linear-gradient(135deg,var(--gold),var(--gold-2));color:#231a00;border:1px solid #f0e6bd;padding:12px 18px;border-radius:999px;box-shadow:0 12px 30px rgba(201,162,39,.35);font-weight:800}
+  @media(min-width:900px){ .sticky-cta{display:none} }
+
+
+  /* ====== Cards NO clickeables (sin modal) ====== */
+  .card:not([data-modal]) {
+
+    cursor: default;
+    box-shadow: none;
+    border: none;
+    background: transparent;
+    padding: 10;           /* integra el texto al fondo */
+    margin: 0;            /* por si algún estilo previo añadió margen */
+    transition: none;
+  }
+  .card:not([data-modal]):hover { 
+    transform: none; 
+    box-shadow: none;
+  }
+  .card:not([data-modal])::after { display: none; }  /* quita brillos decorativos */
+
+  /* Modo oscuro (secciones con fondo negro/parallax) */
+  .card.on-dark:not([data-modal]) {
+    background: transparent;
+    border: none;
+    color: #fff!modal;       /* texto legible sobre el fondo oscuro */
+  }
+  .card.on-dark:not([data-modal]) .chip { 
+    background: transparent; 
+    border: none; 
+    color: #cbd5e1;
+  }
+
+  /* Solo las que ABREN modal muestran interacción */
+  .card[data-modal] { cursor: pointer; }
+  .card[data-modal]:hover { 
+    transform: translateY(-3px); 
+    box-shadow: var(--shadow-strong);
+  }
+
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="inner">
+    <a class="brand" href="#inicio">
+      <img src="assets/logonuevo.png" alt="MSTV">
+      <span>MSTV Seguridad Privada</span>
+    </a>
+    <div class="navlinks">
+      <a href="#dolores">Problemas</a>
+      <a href="#soluciones">Solución</a>
+      <a href="#proceso">Proceso</a>
+      <a href="#diferenciales">Diferenciales</a>
+      <a class="cta" href="#contacto">Cotizar</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header id="inicio" class="hero">
+  <div class="bg" data-parallax data-speed="0.22"></div>
+  <div class="veil"></div>
+  <div class="content">
+    <span class="sub">Especialistas en seguiridad integral</span>
+    <h1>Seguridad que <span style="background:linear-gradient(135deg,var(--gold),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent">previene incidencias</span> y protege <br> lo que más valoras</h1>
+    <p>Procesos específicos, control de accesos, rondines, supervisión constante y monitoréo remoto acompañado de un <b>criterio operativo</b>. <br>Más de <b>2,000 clientes satisfechos</b> en León y el Bajío.</p>
+    <div class="actions">
+      <a class="btn gold" href="#contacto">Agenda una evaluación sin costo</a>
+      <a class="btn" href="#soluciones">Cómo lo resolvemos</a>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><b>+ 2,000</b><div class="muted">Clientes satisfechos</div></div>
+      <div class="kpi"><b>24/7</b><div class="muted">Supervisión presencial y remota</div></div>
+      <div class="kpi"><b>24/7</b><div class="muted">Cabina de control interna</div></div>
+    </div>
+    <small class="muted">* Resultados efectivos al implementar filtros, rondines y consignas adecuadas a tus necesidades.</small>
+  </div>
+</header>
+
+<!-- Sticky CTA móvil -->
+<div class="sticky-cta"><a href="#contacto">Quiero cotizar ahora</a></div>
+
+<!-- STRIP -->
+<div class="strip">
+  <div class="wrap" style="text-align:center">
+    <small><b>León y Bajío</b> • Aquiles Serdán 220, Centro, León, Gto. • Tel. 477 698 6266</small>
+  </div>
+</div>
+
+<section id="dolores">
+  <img src="assets/monitoreo.png" width="100%">  
+</section>
+
+<!-- DOLORES -->
+<section id="dolores" class="wrap">
+  <div class="section-title"><span class="bar"></span><h2>Si administras: personal, viviendas, líneas de operación, seguramente te pasa…</h2></div>
+  <div class="cards" style="margin-top:12px">
+    <article class="card" data-reveal>
+      <h3>Entradas sin control</h3>
+      <p>Visitas sin registro, proveedores sin validar, repartidores sin procedimiento.</p>
+    </article>
+    <article class="card" data-reveal>
+      <h3>Rondines inconsistentes</h3>
+      <p>Zonas ciegas, bitácoras incompletas y tiempos muertos.</p>
+    </article>
+    <article class="card" data-reveal>
+      <h3>Población inconformes</h3>
+      <p>Quejas por tiempos de espera, mal trato o incidentes recurrentes.</p>
+    </article>
+    <article class="card" data-reveal>
+      <h3>Falta de supervisión</h3>
+      <p>Guardias sin capacitación ni seguimiento; nadie mide ni corrige.</p>
+    </article>
+  </div>
+</section>
+
+
+
+<!-- SOLUCIONES (FONDO NEGRO + PARALLAX 100%) -->
+<section id="soluciones" class="section-dark" style="min-height:100%;overflow:hidden">
+  <div class="bg" data-parallax data-speed="0.15"
+       style="background-image:url('assets/img/2.png"></div>
+  <div class="veil"></div>
+  <div class="wrap">
+    <div class="section-title"><span class="bar"></span><h2>Así lo resolvemos para tu seguridad: Negocio, casa o bodega</h2></div>
+    <div class="grid-2">
+      <div class="cards">
+        <article class="card on-dark" data-reveal data-modal="s1">
+          <h3>Control de Accesos que fluye</h3>
+          <p class="muted">Protocolos claros para visitantes, proveedores y paquetería.</p>
+          <span class="chip">Menos filas, más seguridad</span>
+        </article>
+        <article class="card on-dark" data-reveal data-modal="s2">
+          <h3>Rondines con evidencia</h3>
+          <p class="muted">Bitácoras, puntos de control y reportes específicos.</p>
+          <span class="chip">Cero zonas ciegas</span>
+        </article>
+        <article class="card on-dark" data-reveal data-modal="s3">
+          <h3>Guardias con trato humano</h3>
+          <p class="muted">Selección, psicometría y capacitación continua.</p>
+          <span class="chip">Calidez + firmeza</span>
+        </article>
+        <article class="card on-dark" data-reveal data-modal="s4">
+          <h3>Supervisión y monitoreo 24/7</h3>
+          <p class="muted">Auditorías, escalamiento y mejora continua.</p>
+          <span class="chip">Siempre vigilado</span>
+        </article>
+      </div>
+      <div class="cards">
+        <article class="card on-dark" data-reveal>
+          <h3>Beneficios medibles</h3>
+          <div class="divider-line"></div>
+          <div class="bullets">
+            <div class="bullet"><div class="tick">✓</div><p>Menos incidentes y mayor control de accesos.</p></div>
+            <div class="bullet"><div class="tick">✓</div><p>Experiencia amable para residentes, personal operativo, visitantes y proveedores.</p></div>
+            <div class="bullet"><div class="tick">✓</div><p>Reportes claros y seguimiento oportuno</p></div>
+            <div class="bullet"><div class="tick">✓</div><p>Rotación baja, lo que garantiza solidez </p></div>
+          </div>
+        </article>
+        <article class="card on-dark" data-reveal>
+          <h3>Garantías MSTV</h3>
+          <p><b>Inicio con consignas establecidas</b> y <b>revisión semanal de KPIs</b> el primer mes. Si no notas mejora, ajustamos sin costo.</p>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROCESO -->
+<section id="proceso" class="wrap">
+  <div class="section-title"><span class="bar"></span><h2>Proceso de trabajo</h2></div>
+  <div class="cards">
+    <article class="card" data-reveal data-modal="p1">
+      <h3>1. Evaluación del sitio</h3>
+      <p class="muted">Recorrido, riesgos y expectativas.</p>
+    </article>
+    <article class="card" data-reveal data-modal="p2">
+      <h3>2. Plan de consignas</h3>
+      <p class="muted">Turnos, filtros, controles y bitácoras.</p>
+    </article>
+    <article class="card" data-reveal data-modal="p3">
+      <h3>3. Selección y capacitación</h3>
+      <p class="muted">Perfil, psicometría y formación continua.</p>
+    </article>
+    <article class="card" data-reveal data-modal="p4">
+      <h3>4. Arranque y supervisión</h3>
+      <p class="muted">Indicadores, rondines y reporte 24/7.</p>
+    </article>
+  </div>
+</section>
+
+<!-- DIFERENCIALES (FONDO NEGRO + PARALLAX 100%) -->
+<section id="diferenciales" class="section-dark" style="min-height:100%;overflow:hidden">
+  <div class="bg" data-parallax data-speed="0.12"
+       style="background-image:url('assets/img/2.png')"></div>
+  <div class="veil"></div>
+  <div class="wrap">
+    <div class="section-title"><span class="bar"></span><h2>¿Por qué somos la mejor alternativa?</h2></div>
+    <div class="cards">
+      <article class="card on-dark" data-reveal data-modal="d1">
+        <h3>Criterio Operativo</h3>
+        <p class="muted">Decisiones con sentido práctico orientadas a resultados.</p>
+      </article>
+      <article class="card on-dark" data-reveal data-modal="d2">
+        <h3>Adaptación constante</h3>
+        <p class="muted">Consignas vivas que evolucionan con tu comunidad.</p>
+      </article>
+      <article class="card on-dark" data-reveal data-modal="d3">
+        <h3>Privacidad y discreción</h3>
+        <p class="muted">Manejo confidencial de información sensible.</p>
+      </article>
+      <article class="card on-dark" data-reveal data-modal="d4">
+        <h3>Legal y cumplimiento</h3>
+        <p class="muted">Permisos municipal/estatal y registro patronal.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIOS -->
+<section class="wrap">
+  <div class="section-title"><span class="bar"></span><h2>Lo que dicen los clientes satisfechos</h2></div>
+  <div class="testi">
+    <div class="quote" data-reveal>
+      <p>“En dos meses bajaron las incidencias del robo hormiga.”</p>
+      <small class="muted">Prevención, fabrica</small>
+    </div>
+    <div class="quote" data-reveal>
+      <p>“Arrancaron rápido y con orden. Nuestros residentes ahora sí notan la diferencia”</p>
+      <small class="muted">Comité de fraccionamiento</small>
+    </div>
+    <div class="quote" data-reveal>
+      <p>“Bajaron las intenciones de robo a 0% en menos de un mes.”</p>
+      <small class="muted">Tienda comercial</small>
+    </div>
+  </div>
+</section>
+
+<!-- QUIÉNES SOMOS (FONDO NEGRO + PARALLAX 100%) -->
+<section id="empresa" class="section-dark" style="min-height:100%;overflow:hidden">
+  <div class="bg" data-parallax data-speed="0.1"
+       style="background-image:url('assets/img/3.png')"></div>
+  <div class="veil"></div>
+  <div class="wrap grid-2">
+    <div>
+      <div class="section-title"><span class="bar"></span><h2>Quiénes somos</h2></div>
+      <div class="cards">
+        <div class="card on-dark" data-reveal>
+          <h3>Identidad</h3>
+          <p><b>MSTV Seguridad privada</b><br>Mexicana de Seguridad Técnica y Vigilancia. <br> Una empresa de León, Leones con Leones</p>
+        </div>
+        <div class="card on-dark" data-reveal>
+          <h3>Misión</h3>
+          <p>Soluciones integrales de seguridad con profesionalización y compromiso social.</p>
+        </div>
+        <div class="card on-dark" data-reveal>
+          <h3>Visión</h3>
+          <p>Liderar en productividad y estándares de capital humano y tecnología.</p>
+        </div>
+        <div class="card on-dark" data-reveal>
+          <h3>Valores</h3>
+          <p>Compromiso · Eficacia · Innovación · Servicio · Calidad Humana.</p>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card on-dark" data-reveal style="display:grid;place-items:center">
+        <img src="assets/logonuevo.png" alt="Logo MSTV" style="width:260px;filter:drop-shadow(0 16px 40px rgba(201,162,39,.35))" />
+        <hr style="border:none;height:1px;background:linear-gradient(90deg,transparent,var(--gold) 45% 55%,transparent);width:100%;opacity:.6;margin:10px 0">
+        <p style="text-align:center"><b>Domicilio:</b> Aquiles Serdán 220, Centro, C.P. 37000, León, Gto.<br>
+        <b>Tel:</b> 477 698 6266</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACTO -->
+<section id="contacto" class="wrap">
+  <div class="section-title"><span class="bar"></span><h2>Agenda tu evaluación sin costo</h2></div>
+  <div class="grid-2">
+    <div class="card" data-reveal>
+      <h3>Cuéntanos tu operación</h3>
+      <p class="muted">Te proponemos un plan de protección a la medida.</p>
+      <form id="contactForm" action="https://example.com/api/contacto" method="POST" novalidate>
+        <div class="form-row">
+          <input type="text" name="nombre" placeholder="Nombre completo" required />
+          <input type="tel" name="telefono" placeholder="Teléfono" required />
+        </div>
+        <div class="form-row">
+          <input type="email" name="email" placeholder="Correo electrónico" required />
+          <input type="text" name="empresa" placeholder="Condominio/Fraccionamiento" />
+        </div>
+        <textarea name="mensaje" placeholder="¿Qué necesitas proteger? (accesos, rondines, reglas…)" required></textarea>
+        <input type="hidden" name="origen" value="landing-mstv" />
+        <button class="submit" type="submit">Quiero mi evaluación</button>
+        <p id="formMsg" role="status" class="muted" style="min-height:24px"></p>
+      </form>
+    </div>
+    <div class="card" data-reveal>
+      <h3>Oficina</h3>
+      <p>Aquiles Serdán 220, Centro, León, Gto. C.P. 37000</p>
+      <div style="height:220px;border-radius:14px;overflow:hidden;border:1px solid var(--line);margin-top:8px">
+        <a href="https://maps.app.goo.gl/bcYvXog5rKMscray7">
+          <img alt="Mapa" src="assets/mapa.png" style="width:100%;height:100%;object-fit:cover">        
+        </a>
+      </div>
+      <p style="margin-top:10px"><b>Tel.</b> 477 698 6266<br>
+      <b>Correos:</b> gerencia@cobisesp.com <br>ventas@cobisesp.com
+      </p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot">
+    <div>
+      <b>MSTV Seguridad Privada</b>
+      <p class="muted">Servicios sujetos a evaluación operativa y disponibilidad. Permisos municipal, estatal y REPSE vigentes.</p>
+    </div>
+    <div style="text-align:right">
+      <span class="muted">© MSTV · Una gran empresa para clientes distinguidos como tú</span>
+    </div>
+  </div>
+</footer>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <header>
+      <h3 id="modalTitle">Título</h3>
+      <button class="x" id="modalClose" aria-label="Cerrar">✕</button>
+    </header>
+    <div class="body" id="modalBody">Contenido</div>
+    <div class="actions">
+      <button class="btn" id="modalClose2">Cerrar</button>
+      <button class="btn cta" id="modalContact">Contáctenos</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Parallax
+  const px = document.querySelectorAll('[data-parallax]');
+  const parallax = () => {
+    const y = window.scrollY || window.pageYOffset;
+    px.forEach(el=>{
+      const sp = parseFloat(el.dataset.speed||0.2);
+      el.style.transform = `translate3d(0, ${y*sp*-0.4}px, 0)`;
+    });
+  };
+  document.addEventListener('scroll', parallax, {passive:true}); parallax();
+
+  // Reveal on scroll
+  const io = new IntersectionObserver(entries=>{
+    entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('show'); io.unobserve(e.target);} });
+  }, {threshold:.12});
+  document.querySelectorAll('[data-reveal]').forEach(el=>io.observe(el));
+
+  // ----- MODALES -----
+  const modalData = {
+    // Soluciones
+    s1:{title:'Control de Accesos que fluye',
+        html:'<p>Registro ágil de visitantes y proveedores con lineamientos claros. Priorizamos fluidez sin perder seguridad.</p><ul><li>Lista autorizada y validación rápida</li><li>Gafetes y stickers temporales</li><li>Procedimiento para paquetería</li></ul>'},
+    s2:{title:'Rondines con evidencia',
+        html:'<p>Rutas por puntos críticos y timestamps. Reporte específico con hallazgos y correcciones.</p>'},
+    s3:{title:'Guardias con trato humano',
+        html:'<p>Selección, psicometría y capacitación en servicio. Calidez con firmeza y respeto a reglamentos.</p><p>MSTV es una empresa de seguiridad privada que nace siendo una empresa de capital humano, por esa razón nuestra rotación es mínima.'},
+    s4:{title:'Supervisión 24/7',
+        html:'<p>Auditorías periódicas, bitácora unificada y escalamiento inmediato de incidentes.</p>'},
+    // Proceso
+    p1:{title:'Evaluación del sitio',
+        html:'<p>Recorremos instalaciones, identificamos riesgos, flujos y puntos críticos. Definimos expectativas y alcances medibles.</p>'},
+    p2:{title:'Plan de consignas',
+        html:'<p>Diseñamos consignas por puesto y turno: filtros, rondines, control de visitantes y proveedores, protocolos de emergencia.</p>'},
+    p3:{title:'Selección y capacitación',
+        html:'<p>Perfilamiento, psicometría y exámenes médicos. Capacitación en Servicio, Protección Civil y Desarrollo Humano.</p>'},
+    p4:{title:'Arranque y supervisión',
+        html:'<p>Puesta en marcha con rondines, auditorías y reporte semanal a comité. Mejora continua.</p>'},
+    // Diferenciales
+    d1:{title:'Criterio Operativo',
+        html:'<p>Decisiones con sentido práctico y orientación a resultados. Menos burocracia, más soluciones.</p>'},
+    d2:{title:'Adaptación constante',
+        html:'<p>Consignas vivas que evolucionan con tu condominio. Ajustamos con base en datos y feedback.</p>'},
+    d3:{title:'Privacidad y discreción',
+        html:'<p>Información sensible sólo bajo autorización del comité. Confidencialidad garantizada.</p>'},
+    d4:{title:'Legal y cumplimiento',
+        html:'<p>Permisos municipal y estatal vigentes, registro patronal e infraestructura formal.</p>'}
+  };
+
+  const overlay = document.getElementById('modalOverlay');
+  const mt = document.getElementById('modalTitle');
+  const mb = document.getElementById('modalBody');
+  const closeButtons = [document.getElementById('modalClose'), document.getElementById('modalClose2')];
+  const contactBtn = document.getElementById('modalContact');
+
+  document.addEventListener('click', (e)=>{
+    const card = e.target.closest('.card[data-modal]');
+    if(!card) return;
+    const key = card.dataset.modal;
+    const data = modalData[key];
+    if(!data) return;
+    mt.textContent = data.title;
+    mb.innerHTML = data.html;
+    overlay.classList.add('show');
+    overlay.setAttribute('aria-hidden','false');
+  });
+
+  const closeModal = ()=>{
+    overlay.classList.remove('show');
+    overlay.setAttribute('aria-hidden','true');
+  };
+  closeButtons.forEach(b=>b.addEventListener('click', closeModal));
+  overlay.addEventListener('click', (e)=>{ if(e.target === overlay) closeModal(); });
+
+  // Botón "Contáctenos": cierra y scrollea al formulario
+  contactBtn.addEventListener('click', ()=>{
+    closeModal();
+    document.getElementById('contacto').scrollIntoView({behavior:'smooth', block:'start'});
+  });
+
+  // Form demo
+  const f = document.getElementById('contactForm');
+  const m = document.getElementById('formMsg');
+  f.addEventListener('submit', async (e)=>{
+    e.preventDefault(); m.textContent = 'Enviando…';
+    try{
+      await new Promise(r=>setTimeout(r,900));
+      m.textContent = '¡Listo! Te contactaremos en breve.'; f.reset();
+    }catch{ m.textContent = 'Hubo un problema. Intenta de nuevo.'; }
+  });
+</script>
+</body>
+</html>
