@@ -1,17 +1,9 @@
 <?php
 // dashboard-cliente.php
-session_start();
+require_once __DIR__ . '/lib/app.php';
 
-include 'lib/db.php';
-
-/* =========================================================
-   1. VALIDAR SESIÓN
-   ========================================================= */
-if (!isset($_SESSION['usuario_id']) || empty($_SESSION['usuario_id'])) {
-    header('Location: index.php');
-    exit;
-}
-
+app_require_session();
+app_require_page_permission();
 
 /* =========================================================
    3. OBTENER CLIENTE A CONSULTAR

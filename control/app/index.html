@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Guardia - Control y Asistencia</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#00ADB5">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #121212;
+            --surface-color: #1E1E1E;
+            --surface-2: #242424;
+            --primary-color: #00ADB5;
+            --success-color: #00C853;
+            --warning-color: #FFA000;
+            --danger-color: #D50000;
+            --text-main: #FFFFFF;
+            --text-muted: #B0B0B0;
+            --border-radius: 16px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: radial-gradient(circle at top, #1d5a63 0%, #151515 45%, #0b0b0b 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+        }
+
+        #mobile-container {
+            width: 375px;
+            max-width: 100%;
+            height: 812px;
+            max-height: 96vh;
+            background-color: var(--bg-color);
+            border-radius: 40px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            position: relative;
+            color: var(--text-main);
+            border: 8px solid #111;
+        }
+
+        .screen {
+            display: none;
+            height: 100%;
+            width: 100%;
+            flex-direction: column;
+            padding: 20px;
+            padding-bottom: 84px;
+            overflow-y: auto;
+        }
+
+        .screen.active { display: flex; }
+        h1, h2, h3, h4, p { margin-top: 0; }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 14px;
+            margin-bottom: 14px;
+            background-color: var(--surface-color);
+            border: 1px solid #303030;
+            border-radius: 12px;
+            color: white;
+            font: inherit;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s ease;
+            margin-bottom: 10px;
+        }
+
+        button:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
+        .btn-primary { background-color: var(--primary-color); color: white; }
+        .btn-success { background-color: var(--success-color); color: white; }
+        .btn-danger { background-color: var(--danger-color); color: white; }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #414141;
+            color: var(--text-main);
+        }
+
+        .widget {
+            background-color: var(--surface-color);
+            padding: 16px;
+            border-radius: var(--border-radius);
+            margin-bottom: 18px;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03);
+        }
+
+        .action-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .action-btn {
+            background-color: var(--surface-2);
+            border: 1px solid #333;
+            color: var(--text-main);
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .action-btn i { font-size: 22px; }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .status-ok { background: rgba(0, 200, 83, 0.14); color: #7de9ab; }
+        .status-warn { background: rgba(255, 160, 0, 0.14); color: #ffd27a; }
+        .status-danger { background: rgba(213, 0, 0, 0.14); color: #ff8d8d; }
+
+        .helper {
+            color: var(--text-muted);
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .bottom-nav {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 74px;
+            background-color: rgba(30, 30, 30, 0.98);
+            display: none;
+            justify-content: space-around;
+            align-items: center;
+            border-top: 1px solid #303030;
+        }
+
+        .nav-item {
+            color: var(--text-muted);
+            text-align: center;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            min-width: 70px;
+        }
+
+        .nav-item i { font-size: 20px; }
+        .nav-item.active { color: var(--primary-color); }
+
+        #checada-modal {
+            position: absolute;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.94);
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .camera-box {
+            width: 210px;
+            height: 260px;
+            border: 2px dashed var(--primary-color);
+            margin: 20px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            border-radius: 16px;
+            background: #0e0e0e;
+        }
+
+        .scanner-line {
+            position: absolute;
+            top: 0;
+            width: 100%;
+            height: 2px;
+            background-color: var(--success-color);
+            box-shadow: 0 0 10px var(--success-color);
+            animation: scan 2s infinite linear;
+            display: none;
+            z-index: 10;
+        }
+
+        @keyframes scan {
+            0% { top: 0; }
+            50% { top: calc(100% - 2px); }
+            100% { top: 0; }
+        }
+
+        .chat-area {
+            flex-grow: 1;
+            overflow-y: auto;
+            background-color: #101010;
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            min-height: 360px;
+        }
+
+        .msg {
+            padding: 10px 12px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            max-width: 84%;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+
+        .msg.me {
+            background-color: rgba(0, 173, 181, 0.92);
+            margin-left: auto;
+        }
+
+        .msg.other {
+            background-color: var(--surface-2);
+            margin-right: auto;
+        }
+
+        .msg small {
+            display: block;
+            margin-top: 6px;
+            color: rgba(255,255,255,0.72);
+            font-size: 11px;
+        }
+
+        .chat-input {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .chat-input input {
+            margin-bottom: 0;
+        }
+
+        .chat-input button {
+            width: 52px;
+            min-width: 52px;
+            margin-bottom: 0;
+            padding: 14px 0;
+        }
+    </style>
+</head>
+<body>
+<div id="mobile-container">
+    <div id="screen-login" class="screen active" style="justify-content: center; padding-bottom: 20px;">
+        <div style="text-align: center; margin-bottom: 38px;">
+            <i class="fa-solid fa-shield-halved" style="font-size: 60px; color: var(--primary-color);"></i>
+            <h2 style="margin: 16px 0 8px;">App MSTV</h2>
+            <p class="helper" style="margin-bottom: 0;">Entrada y salida contra turnos asignados.</p>
+        </div>
+        <input type="text" id="username" placeholder="Usuario" value="guardia01">
+        <input type="password" id="password" placeholder="Contraseña" value="1234">
+        <button class="btn-primary" id="btn-login" onclick="login()">Iniciar sesión</button>
+        <p id="login-error" class="helper" style="display:none; color:#ff8d8d; background:rgba(213,0,0,0.12); padding:12px; border-radius:12px;"></p>
+    </div>
+
+    <div id="screen-dashboard" class="screen">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 18px; gap: 12px;">
+            <div>
+                <h2 id="dash-nombre" style="margin-bottom: 6px;">Hola, Guardia</h2>
+                <p class="helper" id="dash-turno-sugerido" style="margin-bottom: 0;">Cargando turno...</p>
+            </div>
+            <button onclick="logout()" class="btn-outline" style="width:auto; margin:0; padding:10px 12px;">
+                <i class="fa-solid fa-power-off"></i>
+            </button>
+        </div>
+
+        <div class="widget">
+            <h4 style="margin-bottom: 12px; color: var(--text-muted);">Turno asignado</h4>
+            <p><strong>Sitio:</strong> <span id="dash-sitio">Cargando...</span></p>
+            <p><strong>Entrada programada:</strong> <span id="dash-entrada-programada">--:--</span></p>
+            <p><strong>Entrada real:</strong> <span id="dash-entrada-real">Sin registrar</span></p>
+            <p><strong>Salida programada:</strong> <span id="dash-salida-programada">--:--</span></p>
+            <p><strong>Salida real:</strong> <span id="dash-salida-real">Sin registrar</span></p>
+            <p><strong>Estado:</strong> <span id="dash-ultimo-evento">Sin registros</span></p>
+            <div id="dash-geocerca-status" class="status-pill status-warn">
+                <i class="fa-solid fa-location-crosshairs"></i> Pendiente de ubicación
+            </div>
+            <div id="dash-foto-base" class="helper" style="margin-top: 12px;"></div>
+        </div>
+
+        <h3 style="margin-bottom: 12px;">Acciones rápidas</h3>
+        <div class="action-grid">
+            <button class="action-btn" id="btn-entrada" onclick="iniciarChecada('ENTRADA')">
+                <i class="fa-solid fa-right-to-bracket"></i>
+                Registrar entrada
+            </button>
+            <button class="action-btn" id="btn-salida" onclick="iniciarChecada('SALIDA')">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                Registrar salida
+            </button>
+        </div>
+ 
+    </div>
+
+    <div id="screen-bitacora" class="screen">
+        <h2>Mi bitácora</h2>
+        <p class="helper">Se muestran tus últimos registros de asistencia y su estatus.</p>
+        <div id="lista-bitacora"></div>
+    </div>
+
+    <div id="screen-incidencias" class="screen">
+        <h2>Reportar incidencia</h2>
+        <select id="inc-tipo">
+            <option value="SEGURIDAD">Seguridad</option>
+            <option value="OPERACION">Operación</option>
+            <option value="MANTENIMIENTO">Mantenimiento</option>
+            <option value="URGENTE">Urgente</option>
+        </select>
+        <select id="inc-prioridad">
+            <option value="BAJA">Baja</option>
+            <option value="MEDIA">Media</option>
+            <option value="ALTA">Alta</option>
+            <option value="CRITICA">Crítica</option>
+        </select>
+        <textarea id="inc-texto" rows="5" placeholder="Describe la incidencia..."></textarea>
+        <button class="btn-danger" id="btn-incidencia" onclick="enviarIncidencia()">Enviar reporte</button>
+    </div>
+
+    <div id="screen-chat" class="screen">
+        <h2>Chat RH / Admin</h2>
+        <p class="helper">Tus mensajes se sincronizan con el panel de control para que puedan responderte.</p>
+        <div class="chat-area" id="chat-messages"></div>
+        <div class="chat-input">
+            <input type="text" id="chat-input-text" placeholder="Escribe un mensaje...">
+            <button class="btn-primary" id="btn-chat-enviar" onclick="enviarMensaje()"><i class="fa-solid fa-paper-plane"></i></button>
+        </div>
+    </div>
+
+    <div class="bottom-nav" id="bottom-nav">
+        <div class="nav-item active" data-screen="dashboard" onclick="navTo('dashboard', this)"><i class="fa-solid fa-house"></i> Inicio</div>
+        <div class="nav-item" data-screen="bitacora" onclick="navTo('bitacora', this)"><i class="fa-solid fa-list-check"></i> Bitácora</div>
+        <div class="nav-item" data-screen="incidencias" onclick="navTo('incidencias', this)"><i class="fa-solid fa-triangle-exclamation"></i> Alerta</div>
+        <div class="nav-item" data-screen="chat" onclick="navTo('chat', this)"><i class="fa-solid fa-comments"></i> Chat</div>
+    </div>
+
+    <div id="checada-modal">
+        <h2 id="modal-title">Registro</h2>
+
+        <div id="paso-gps">
+            <i class="fa-solid fa-satellite-dish" style="font-size:50px; color:var(--primary-color); margin-bottom:18px;"></i>
+            <p id="gps-status-text">Obteniendo ubicación GPS...</p>
+        </div>
+
+        <div id="paso-facial" style="display:none; width:100%;">
+            <p>Toma tu selfie para guardar la evidencia del turno.</p>
+            <div class="camera-box">
+                <video id="video-feed" autoplay playsinline style="width:100%; height:100%; object-fit:cover;"></video>
+                <div class="scanner-line" id="scanner"></div>
+            </div>
+            <canvas id="photo-canvas" style="display:none;"></canvas>
+            <button class="btn-primary" id="btn-capturar" onclick="capturarSelfie()">Capturar selfie</button>
+            <p id="facial-status" class="helper" style="display:none; color:#7de9ab;">Procesando imagen...</p>
+        </div>
+
+        <div id="paso-comentario" style="display:none; width:100%;">
+            <i class="fa-solid fa-circle-check" style="font-size:48px; color:var(--success-color); margin-bottom:18px;"></i>
+            <p>Ubicación y foto capturadas.</p>
+            <textarea id="checada-comentario" rows="3" placeholder="Comentario opcional..."></textarea>
+            <button class="btn-success" id="btn-finalizar-checada" onclick="finalizarChecada()">Guardar registro</button>
+            <button class="btn-outline" onclick="cerrarModal()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const API_URL = 'api.php';
+let currentUser = null;
+let currentTurno = null;
+let tipoChecadaActual = '';
+let streamGlobal = null;
+let activeScreen = 'dashboard';
+let chatPollInterval = null;
+let datosChecada = {
+    latitud: 0,
+    longitud: 0,
+    dentro_geocerca: 0,
+    fotoBase64: ''
+};
+
+function navTo(screenId, element) {
+    activeScreen = screenId;
+    document.querySelectorAll('.screen').forEach((screen) => screen.classList.remove('active'));
+    document.getElementById('screen-' + screenId).classList.add('active');
+
+    document.querySelectorAll('.nav-item').forEach((item) => item.classList.remove('active'));
+    if (element) {
+        element.classList.add('active');
+    }
+
+    if (screenId === 'bitacora') {
+        cargarBitacora();
+    } else if (screenId === 'chat') {
+        cargarChat();
+    }
+}
+
+async function login() {
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    const btn = document.getElementById('btn-login');
+    const errorBox = document.getElementById('login-error');
+
+    btn.disabled = true;
+    btn.textContent = 'Verificando...';
+    errorBox.style.display = 'none';
+
+    try {
+        const response = await fetch(`${API_URL}?action=login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        const data = await response.json();
+
+        if (data.status !== 'success') {
+            throw new Error(data.message || 'No fue posible iniciar sesión.');
+        }
+
+        currentUser = data.user;
+        document.getElementById('dash-nombre').innerText = `Hola, ${currentUser.nombre_completo}`;
+        document.getElementById('screen-login').classList.remove('active');
+        document.getElementById('screen-dashboard').classList.add('active');
+        document.getElementById('bottom-nav').style.display = 'flex';
+
+        await cargarDashboard();
+        await cargarChat();
+        iniciarChatPolling();
+    } catch (error) {
+        errorBox.innerText = error.message || 'Error al conectar con el servidor.';
+        errorBox.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Iniciar sesión';
+    }
+}
+
+function logout() {
+    detenerChatPolling();
+    currentUser = null;
+    currentTurno = null;
+    activeScreen = 'dashboard';
+    document.getElementById('password').value = '';
+    document.getElementById('bottom-nav').style.display = 'none';
+    document.getElementById('chat-messages').innerHTML = '';
+    document.getElementById('lista-bitacora').innerHTML = '';
+    document.querySelectorAll('.screen').forEach((screen) => screen.classList.remove('active'));
+    document.getElementById('screen-login').classList.add('active');
+    document.querySelectorAll('.nav-item').forEach((item) => item.classList.remove('active'));
+    document.querySelector('.nav-item[data-screen="dashboard"]').classList.add('active');
+}
+
+function iniciarChatPolling() {
+    detenerChatPolling();
+    chatPollInterval = setInterval(() => {
+        if (currentUser && activeScreen === 'chat') {
+            cargarChat(true);
+        }
+    }, 8000);
+}
+
+function detenerChatPolling() {
+    if (chatPollInterval) {
+        clearInterval(chatPollInterval);
+        chatPollInterval = null;
+    }
+}
+
+function formatDateTime(value, onlyTime = false) {
+    if (!value) {
+        return onlyTime ? '--:--' : 'Sin registrar';
+    }
+
+    const parts = String(value).split(' ');
+    if (onlyTime && parts[1]) {
+        return parts[1].substring(0, 5);
+    }
+
+    if (parts.length >= 2) {
+        return `${parts[0]} ${parts[1].substring(0, 5)}`;
+    }
+
+    return String(value);
+}
+
+async function cargarDashboard() {
+    if (!currentUser) return;
+
+    try {
+        const response = await fetch(`${API_URL}?action=dashboard&personal_id=${currentUser.personal_id}`);
+        const data = await response.json();
+
+        if (data.status === 'success' && data.turno) {
+            currentTurno = data.turno;
+            document.getElementById('dash-sitio').innerText = currentTurno.sitio_nombre;
+            document.getElementById('dash-entrada-programada').innerText = formatDateTime(currentTurno.hora_programada_entrada || currentTurno.hora_inicio, true);
+            document.getElementById('dash-entrada-real').innerText = formatDateTime(currentTurno.hora_real_entrada);
+            document.getElementById('dash-salida-programada').innerText = formatDateTime(currentTurno.hora_programada_salida || currentTurno.hora_fin, true);
+            document.getElementById('dash-salida-real').innerText = formatDateTime(currentTurno.hora_real_salida);
+            document.getElementById('dash-ultimo-evento').innerText = currentTurno.ultimo_evento || 'Sin registros';
+            const puedeEntrada = currentTurno.puede_registrar_entrada !== false;
+            document.getElementById('btn-entrada').disabled = !puedeEntrada && (currentTurno.siguiente_evento_sugerido || 'ENTRADA') === 'ENTRADA';
+            document.getElementById('btn-salida').disabled = (currentTurno.siguiente_evento_sugerido || 'ENTRADA') !== 'SALIDA';
+            document.getElementById('dash-turno-sugerido').innerText = puedeEntrada
+                ? `Siguiente registro sugerido: ${currentTurno.siguiente_evento_sugerido || 'ENTRADA'}`
+                : `Podrás registrar entrada desde ${formatDateTime(currentTurno.puede_checar_desde)}`;
+        } else {
+            currentTurno = null;
+            document.getElementById('dash-sitio').innerText = 'Sin turno asignado';
+            document.getElementById('dash-entrada-programada').innerText = '--:--';
+            document.getElementById('dash-entrada-real').innerText = 'Sin registrar';
+            document.getElementById('dash-salida-programada').innerText = '--:--';
+            document.getElementById('dash-salida-real').innerText = 'Sin registrar';
+            document.getElementById('dash-ultimo-evento').innerText = 'No disponible';
+            document.getElementById('dash-turno-sugerido').innerText = data.message || 'No hay turnos disponibles';
+            document.getElementById('btn-entrada').disabled = true;
+            document.getElementById('btn-salida').disabled = true;
+        }
+
+        document.getElementById('dash-foto-base').innerHTML = currentUser.foto_base_registrada
+            ? '<span class="status-pill status-ok"><i class="fa-solid fa-camera"></i> Foto base registrada para comparación</span>'
+            : '<span class="status-pill status-warn"><i class="fa-solid fa-camera-retro"></i> Falta foto base del colaborador; la revisión será visual desde control</span>';
+    } catch (error) {
+        currentTurno = null;
+        document.getElementById('dash-turno-sugerido').innerText = 'No fue posible cargar el turno.';
+    }
+}
+
+async function cargarBitacora() {
+    if (!currentUser) return;
+
+    const lista = document.getElementById('lista-bitacora');
+    lista.innerHTML = '<p class="helper"><i class="fa-solid fa-spinner fa-spin"></i> Cargando registros...</p>';
+
+    try {
+        const response = await fetch(`${API_URL}?action=bitacora&personal_id=${currentUser.personal_id}`);
+        const data = await response.json();
+        lista.innerHTML = '';
+
+        if (data.status !== 'success' || !Array.isArray(data.registros) || data.registros.length === 0) {
+            lista.innerHTML = '<p class="helper">No hay registros recientes.</p>';
+            return;
+        }
+
+        data.registros.forEach((registro) => {
+            const div = document.createElement('div');
+            div.className = 'widget';
+
+            let estadoClase = 'status-warn';
+            if (registro.estado === 'ACEPTADO') estadoClase = 'status-ok';
+            if (registro.estado.startsWith('RECHAZADO')) estadoClase = 'status-danger';
+
+            div.innerHTML = `
+                <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
+                    <div>
+                        <strong>${registro.tipo_evento}</strong>
+                        <p class="helper" style="margin:6px 0 0;">
+                            ${registro.sitio_nombre}<br>
+                            Registro: ${registro.fecha_hora}<br>
+                            Entrada: prog. ${formatDateTime(registro.hora_programada_entrada, true)} · real ${formatDateTime(registro.hora_real_entrada)}<br>
+                            Salida: prog. ${formatDateTime(registro.hora_programada_salida, true)} · real ${formatDateTime(registro.hora_real_salida)}
+                        </p>
+                    </div>
+                    <div class="status-pill ${estadoClase}">${registro.estado.replaceAll('_', ' ')}</div>
+                </div>
+            `;
+            lista.appendChild(div);
+        });
+    } catch (error) {
+        lista.innerHTML = '<p class="helper" style="color:#ff8d8d;">No fue posible cargar la bitácora.</p>';
+    }
+}
+
+function iniciarChecada(tipo) {
+    if (!currentTurno) {
+        alert('No tienes un turno asignado actualmente.');
+        return;
+    }
+
+    tipoChecadaActual = tipo;
+    datosChecada = { latitud: 0, longitud: 0, dentro_geocerca: 0, fotoBase64: '' };
+
+    document.getElementById('modal-title').innerText = tipo === 'ENTRADA' ? 'Registro de entrada' : 'Registro de salida';
+    document.getElementById('paso-gps').style.display = 'block';
+    document.getElementById('paso-facial').style.display = 'none';
+    document.getElementById('paso-comentario').style.display = 'none';
+    document.getElementById('scanner').style.display = 'none';
+    document.getElementById('facial-status').style.display = 'none';
+    document.getElementById('btn-capturar').style.display = 'block';
+    document.getElementById('checada-comentario').value = '';
+    document.getElementById('checada-modal').style.display = 'flex';
+
+    obtenerUbicacion();
+}
+
+function obtenerUbicacion() {
+    if (!navigator.geolocation) {
+        alert('Tu navegador no soporta geolocalización.');
+        cerrarModal();
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            datosChecada.latitud = position.coords.latitude;
+            datosChecada.longitud = position.coords.longitude;
+
+            const distancia = calcularDistancia(
+                datosChecada.latitud,
+                datosChecada.longitud,
+                parseFloat(currentTurno.latitud),
+                parseFloat(currentTurno.longitud)
+            );
+
+            datosChecada.dentro_geocerca = distancia <= parseInt(currentTurno.radio_geocerca, 10) ? 1 : 0;
+            actualizarEstadoGeocerca(datosChecada.dentro_geocerca === 1);
+
+            document.getElementById('paso-gps').style.display = 'none';
+            document.getElementById('paso-facial').style.display = 'block';
+            iniciarCamara();
+        },
+        () => {
+            alert('Debes permitir el acceso a tu ubicación para registrar entrada o salida.');
+            cerrarModal();
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+}
+
+function actualizarEstadoGeocerca(dentro) {
+    const node = document.getElementById('dash-geocerca-status');
+    node.className = dentro ? 'status-pill status-ok' : 'status-pill status-danger';
+    node.innerHTML = dentro
+        ? '<i class="fa-solid fa-location-dot"></i> Dentro de la geocerca'
+        : '<i class="fa-solid fa-triangle-exclamation"></i> Fuera de la geocerca';
+}
+
+function calcularDistancia(lat1, lon1, lat2, lon2) {
+    const R = 6371e3;
+    const phi1 = lat1 * Math.PI / 180;
+    const phi2 = lat2 * Math.PI / 180;
+    const dPhi = (lat2 - lat1) * Math.PI / 180;
+    const dLambda = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dPhi / 2) * Math.sin(dPhi / 2)
+        + Math.cos(phi1) * Math.cos(phi2) * Math.sin(dLambda / 2) * Math.sin(dLambda / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+async function iniciarCamara() {
+    try {
+        const video = document.getElementById('video-feed');
+        streamGlobal = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+        video.srcObject = streamGlobal;
+    } catch (error) {
+        alert('No se pudo acceder a la cámara. Revisa los permisos.');
+        cerrarModal();
+    }
+}
+
+function capturarSelfie() {
+    const video = document.getElementById('video-feed');
+    const canvas = document.getElementById('photo-canvas');
+    const context = canvas.getContext('2d');
+
+    const maxWidth = 640;
+    const scale = maxWidth / video.videoWidth;
+    canvas.width = maxWidth;
+    canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    datosChecada.fotoBase64 = canvas.toDataURL('image/jpeg', 0.75);
+
+    if (streamGlobal) {
+        streamGlobal.getTracks().forEach((track) => track.stop());
+        streamGlobal = null;
+    }
+
+    document.getElementById('btn-capturar').style.display = 'none';
+    document.getElementById('scanner').style.display = 'block';
+    document.getElementById('facial-status').style.display = 'block';
+
+    setTimeout(() => {
+        document.getElementById('paso-facial').style.display = 'none';
+        document.getElementById('paso-comentario').style.display = 'block';
+    }, 700);
+}
+
+async function finalizarChecada() {
+    const btn = document.getElementById('btn-finalizar-checada');
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+
+    const formData = new FormData();
+    formData.append('personal_id', currentUser.personal_id);
+    formData.append('turno_id', currentTurno.turno_id);
+    formData.append('tipo', tipoChecadaActual);
+    formData.append('latitud', datosChecada.latitud);
+    formData.append('longitud', datosChecada.longitud);
+    formData.append('esta_dentro_geocerca', datosChecada.dentro_geocerca);
+    formData.append('fotoBase64', datosChecada.fotoBase64);
+    formData.append('comentarios', document.getElementById('checada-comentario').value.trim());
+
+    try {
+        const response = await fetch(`${API_URL}?action=checar`, {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+
+        if (data.status !== 'success') {
+            throw new Error(data.message || 'No fue posible guardar el registro.');
+        }
+
+        let detalle = `${data.message}\nEstado: ${data.estado}`;
+        if (typeof data.puntaje_facial === 'number') {
+            detalle += `\nScore foto: ${data.puntaje_facial}%`;
+        }
+        alert(detalle);
+
+        cerrarModal();
+        await cargarDashboard();
+        await cargarBitacora();
+    } catch (error) {
+        alert(error.message || 'Error de conexión.');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Guardar registro';
+    }
+}
+
+function cerrarModal() {
+    if (streamGlobal) {
+        streamGlobal.getTracks().forEach((track) => track.stop());
+        streamGlobal = null;
+    }
+    document.getElementById('checada-modal').style.display = 'none';
+}
+
+async function enviarIncidencia() {
+    if (!currentTurno) {
+        alert('Necesitas un turno asignado para reportar incidencias.');
+        return;
+    }
+
+    const descripcion = document.getElementById('inc-texto').value.trim();
+    if (!descripcion) {
+        alert('Agrega una descripción.');
+        return;
+    }
+
+    const btn = document.getElementById('btn-incidencia');
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+
+    try {
+        const response = await fetch(`${API_URL}?action=reportar_incidencia`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sitio_id: currentTurno.sitio_id,
+                personal_id: currentUser.personal_id,
+                tipo: document.getElementById('inc-tipo').value,
+                prioridad: document.getElementById('inc-prioridad').value,
+                descripcion
+            })
+        });
+        const data = await response.json();
+
+        if (data.status !== 'success') {
+            throw new Error(data.message || 'No fue posible enviar la incidencia.');
+        }
+
+        document.getElementById('inc-texto').value = '';
+        alert('Incidencia enviada correctamente.');
+        navTo('dashboard', document.querySelector('.nav-item[data-screen="dashboard"]'));
+    } catch (error) {
+        alert(error.message || 'Error al enviar el reporte.');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Enviar reporte';
+    }
+}
+
+async function cargarChat(silencioso = false) {
+    if (!currentUser) return;
+
+    const container = document.getElementById('chat-messages');
+    if (!silencioso) {
+        container.innerHTML = '<p class="helper"><i class="fa-solid fa-spinner fa-spin"></i> Cargando conversación...</p>';
+    }
+
+    try {
+        const response = await fetch(`${API_URL}?action=chat_listar&personal_id=${currentUser.personal_id}`);
+        const data = await response.json();
+
+        if (data.status !== 'success') {
+            throw new Error(data.message || 'No fue posible cargar el chat.');
+        }
+
+        renderChat(data.mensajes || []);
+    } catch (error) {
+        if (!silencioso || container.children.length === 0) {
+            container.innerHTML = '<p class="helper" style="color:#ff8d8d;">No fue posible cargar el chat.</p>';
+        }
+    }
+}
+
+function renderChat(mensajes) {
+    const container = document.getElementById('chat-messages');
+    const cercaDelFinal = container.scrollHeight - container.scrollTop - container.clientHeight < 90;
+    container.innerHTML = '';
+
+    if (!Array.isArray(mensajes) || mensajes.length === 0) {
+        container.innerHTML = '<p class="helper">Todavía no hay mensajes. Puedes escribir a RH o administración desde aquí.</p>';
+        return;
+    }
+
+    mensajes.forEach((mensaje) => {
+        const div = document.createElement('div');
+        div.className = `msg ${mensaje.sentido === 'me' ? 'me' : 'other'}`;
+        div.innerHTML = `
+            <div>${escapeHtml(mensaje.cuerpo_mensaje)}</div>
+            <small>${escapeHtml(mensaje.remitente_nombre || '')} · ${escapeHtml(mensaje.fecha_creacion || '')}</small>
+        `;
+        container.appendChild(div);
+    });
+
+    if (cercaDelFinal) {
+        container.scrollTop = container.scrollHeight;
+    }
+}
+
+async function enviarMensaje() {
+    if (!currentUser) return;
+
+    const input = document.getElementById('chat-input-text');
+    const btn = document.getElementById('btn-chat-enviar');
+    const mensaje = input.value.trim();
+
+    if (!mensaje) return;
+
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(`${API_URL}?action=chat_enviar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                personal_id: currentUser.personal_id,
+                mensaje
+            })
+        });
+        const data = await response.json();
+
+        if (data.status !== 'success') {
+            throw new Error(data.message || 'No fue posible enviar el mensaje.');
+        }
+
+        input.value = '';
+        await cargarChat();
+    } catch (error) {
+        alert(error.message || 'No fue posible enviar el mensaje.');
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function escapeHtml(value) {
+    return String(value || '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+}
+
+document.getElementById('chat-input-text').addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        enviarMensaje();
+    }
+});
+</script>
+</body>
+</html>

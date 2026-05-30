@@ -1,21 +1,9 @@
 <?php
 // turnos-politicas.php
-session_start();
+require_once __DIR__ . '/lib/app.php';
 
-if (!isset($_SESSION['usuario_id'])) {
-    header("Location: index.php");
-    exit;
-}
-
-include 'lib/db.php'; // Debe definir $conexion (mysqli)
-
-// Roles permitidos para configurar políticas
-$rol = isset($_SESSION['rol_nombre']) ? $_SESSION['rol_nombre'] : '';
-$roles_permitidos = ['ADMIN', 'RH', 'NOMINA', 'DUEÑO'];
-if (!in_array($rol, $roles_permitidos)) {
-    echo "No tienes permisos para ver esta página.";
-    exit;
-}
+app_require_session();
+app_require_page_permission();
 
 function limpiar($txt) {
     return trim(htmlspecialchars($txt, ENT_QUOTES, 'UTF-8'));

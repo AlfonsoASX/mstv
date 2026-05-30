@@ -1,22 +1,9 @@
 <?php
 // sitios-editor-geocerca.php
-session_start();
+require_once __DIR__ . '/lib/app.php';
 
-if (!isset($_SESSION['usuario_id'])) {
-    header("Location: index.php");
-    exit;
-}
-
-include 'lib/db.php'; // Debe definir $conexion (mysqli)
-
-// Roles que pueden administrar geocercas (ajusta a tu gusto)
-$rol = isset($_SESSION['rol_nombre']) ? $_SESSION['rol_nombre'] : '';
-$roles_permitidos = ['ADMIN', 'SUPERVISOR', 'DUEÑO'];
-
-if (!in_array($rol, $roles_permitidos)) {
-    echo "No tienes permisos para ver esta página.";
-    exit;
-}
+app_require_session();
+app_require_page_permission();
 
 // Helper
 function limpiar($txt) {
@@ -27,79 +14,105 @@ $mensaje_ok    = '';
 $mensaje_error = '';
 
 // =======================
-//  GUARDAR (INSERT/UPDATE)
+//  GUARDAR / DESACTIVAR
 // =======================
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['accion'] === 'guardar') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
+    $accion = $_POST['accion'];
 
-    $sitio_id   = isset($_POST['sitio_id']) ? (int)$_POST['sitio_id'] : 0;
-    $cliente_id = isset($_POST['cliente_id']) ? (int)$_POST['cliente_id'] : 0;
-    $nombre     = isset($_POST['nombre']) ? limpiar($_POST['nombre']) : '';
-    $direccion  = isset($_POST['direccion']) ? limpiar($_POST['direccion']) : '';
-    $latitud    = isset($_POST['latitud']) ? (float)$_POST['latitud'] : 0;
-    $longitud   = isset($_POST['longitud']) ? (float)$_POST['longitud'] : 0;
-    $radio      = isset($_POST['radio_geocerca']) ? (int)$_POST['radio_geocerca'] : 0;
+    if ($accion === 'guardar') {
+        $sitio_id    = isset($_POST['sitio_id']) ? (int)$_POST['sitio_id'] : 0;
+        $cliente_id  = isset($_POST['cliente_id']) ? (int)$_POST['cliente_id'] : 0;
+        $nombre      = isset($_POST['nombre']) ? limpiar($_POST['nombre']) : '';
+        $direccion   = isset($_POST['direccion']) ? limpiar($_POST['direccion']) : '';
+        $latitudRaw  = isset($_POST['latitud']) ? trim((string)$_POST['latitud']) : '';
+        $longitudRaw = isset($_POST['longitud']) ? trim((string)$_POST['longitud']) : '';
+        $radio       = isset($_POST['radio_geocerca']) ? (int)$_POST['radio_geocerca'] : 0;
 
-    if ($cliente_id <= 0 || $nombre === '' || !$latitud || !$longitud || $radio <= 0) {
-        $mensaje_error = "Completa cliente, nombre, ubicación y radio.";
-    } else {
-        if ($sitio_id > 0) {
-            // UPDATE
-            $sql_up = "
-                UPDATE sitios
-                SET cliente_id = ?,
-                    nombre = ?,
-                    direccion = ?,
-                    latitud = ?,
-                    longitud = ?,
-                    radio_geocerca = ?
-                WHERE id = ?
-            ";
-            if ($stmt = mysqli_prepare($conexion, $sql_up)) {
-                mysqli_stmt_bind_param(
-                    $stmt,
-                    "issdidi",
-                    $cliente_id,
-                    $nombre,
-                    $direccion,
-                    $latitud,
-                    $longitud,
-                    $radio,
-                    $sitio_id
-                );
-                if (mysqli_stmt_execute($stmt)) {
-                    $mensaje_ok = "Sitio actualizado correctamente.";
-                } else {
-                    $mensaje_error = "Error al actualizar el sitio: " . mysqli_error($conexion);
-                }
-                mysqli_stmt_close($stmt);
-            } else {
-                $mensaje_error = "Error interno al preparar UPDATE.";
-            }
+        if ($latitudRaw === '' || $longitudRaw === '') {
+            $mensaje_error = "Debes seleccionar o capturar latitud y longitud del sitio.";
         } else {
-            // INSERT
-            $sql_in = "
-                INSERT INTO sitios (cliente_id, nombre, direccion, latitud, longitud, tipo_geocerca, radio_geocerca, esta_activo)
-                VALUES (?, ?, ?, ?, ?, 'CIRCULO', ?, 1)
-            ";
-            if ($stmt = mysqli_prepare($conexion, $sql_in)) {
-                mysqli_stmt_bind_param(
-                    $stmt,
-                    "issddi",
-                    $cliente_id,
-                    $nombre,
-                    $direccion,
-                    $latitud,
-                    $longitud,
-                    $radio
-                );
-                if (mysqli_stmt_execute($stmt)) {
-                    $mensaje_ok = "Sitio creado correctamente.";
+            $latitud = (float)$latitudRaw;
+            $longitud = (float)$longitudRaw;
+
+            if ($cliente_id <= 0 || $nombre === '' || $radio <= 0) {
+                $mensaje_error = "Completa cliente, nombre, ubicación y radio.";
+            } elseif ($latitud < -90 || $latitud > 90 || $longitud < -180 || $longitud > 180) {
+                $mensaje_error = "La latitud o longitud capturada no es válida.";
+            } else {
+                if ($sitio_id > 0) {
+                    $sql_up = "
+                        UPDATE sitios
+                        SET cliente_id = ?,
+                            nombre = ?,
+                            direccion = ?,
+                            latitud = ?,
+                            longitud = ?,
+                            radio_geocerca = ?
+                        WHERE id = ?
+                    ";
+                    if ($stmt = mysqli_prepare($conexion, $sql_up)) {
+                        mysqli_stmt_bind_param(
+                            $stmt,
+                            "issddii",
+                            $cliente_id,
+                            $nombre,
+                            $direccion,
+                            $latitud,
+                            $longitud,
+                            $radio,
+                            $sitio_id
+                        );
+                        if (mysqli_stmt_execute($stmt)) {
+                            $mensaje_ok = "Sitio actualizado correctamente.";
+                        } else {
+                            $mensaje_error = "Error al actualizar el sitio: " . mysqli_error($conexion);
+                        }
+                        mysqli_stmt_close($stmt);
+                    } else {
+                        $mensaje_error = "Error interno al preparar UPDATE.";
+                    }
                 } else {
-                    $mensaje_error = "Error al crear el sitio: " . mysqli_error($conexion);
+                    $sql_in = "
+                        INSERT INTO sitios (cliente_id, nombre, direccion, latitud, longitud, tipo_geocerca, radio_geocerca, esta_activo)
+                        VALUES (?, ?, ?, ?, ?, 'CIRCULO', ?, 1)
+                    ";
+                    if ($stmt = mysqli_prepare($conexion, $sql_in)) {
+                        mysqli_stmt_bind_param(
+                            $stmt,
+                            "issddi",
+                            $cliente_id,
+                            $nombre,
+                            $direccion,
+                            $latitud,
+                            $longitud,
+                            $radio
+                        );
+                        if (mysqli_stmt_execute($stmt)) {
+                            $mensaje_ok = "Sitio creado correctamente.";
+                        } else {
+                            $mensaje_error = "Error al crear el sitio: " . mysqli_error($conexion);
+                        }
+                        mysqli_stmt_close($stmt);
+                    } else {
+                        $mensaje_error = "Error interno al preparar INSERT.";
+                    }
+                }
+            }
+        }
+    }
+
+    if ($accion === 'desactivar') {
+        $sitio_id = isset($_POST['sitio_id']) ? (int)$_POST['sitio_id'] : 0;
+        if ($sitio_id > 0) {
+            $sql = "UPDATE sitios SET esta_activo = 0 WHERE id = ? LIMIT 1";
+            if ($stmt = mysqli_prepare($conexion, $sql)) {
+                mysqli_stmt_bind_param($stmt, "i", $sitio_id);
+                if (mysqli_stmt_execute($stmt)) {
+                    $mensaje_ok = "Sitio desactivado correctamente. Se conserva para históricos.";
+                } else {
+                    $mensaje_error = "No fue posible desactivar el sitio.";
                 }
                 mysqli_stmt_close($stmt);
-            } else {
-                $mensaje_error = "Error interno al preparar INSERT.";
             }
         }
     }
@@ -131,6 +144,7 @@ $sql_s = "
         c.nombre_empresa AS cliente_nombre
     FROM sitios s
     INNER JOIN clientes c ON c.id = s.cliente_id
+    WHERE s.esta_activo = 1
     ORDER BY c.nombre_empresa, s.nombre
 ";
 if ($res_s = mysqli_query($conexion, $sql_s)) {
@@ -349,14 +363,14 @@ foreach ($lista_sitios as $s) {
                                             <div class="row g-1">
                                                 <div class="col-6">
                                                     <label class="form-label mb-1">Latitud</label>
-                                                    <input type="text" name="latitud" id="latitud" class="form-control form-control-sm" readonly required>
+                                                    <input type="text" name="latitud" id="latitud" class="form-control form-control-sm" required>
                                                 </div>
                                                 <div class="col-6">
                                                     <label class="form-label mb-1">Longitud</label>
-                                                    <input type="text" name="longitud" id="longitud" class="form-control form-control-sm" readonly required>
+                                                    <input type="text" name="longitud" id="longitud" class="form-control form-control-sm" required>
                                                 </div>
                                             </div>
-                                            <small class="text-muted">Se rellenan automáticamente al hacer clic en el mapa.</small>
+                                            <small class="text-muted">Se rellenan al hacer clic en el mapa y también puedes ajustarlos manualmente.</small>
                                         </div>
 
                                         <div class="mb-3">
@@ -389,7 +403,8 @@ foreach ($lista_sitios as $s) {
                                     <h6 class="mb-0">Sitios configurados</h6>
                                     <span class="badge bg-light text-dark"><?php echo count($lista_sitios); ?> sitios</span>
                                 </div>
-                                <div class="card-body p-0">
+                                <div class="card-body">
+                                    <input type="search" class="form-control form-control-sm mb-3" id="buscar-sitios" placeholder="Buscar sitio, cliente o dirección...">
                                     <div class="table-responsive">
                                         <table class="table table-sm mb-0 tabla-sitios">
                                             <thead class="table-light">
@@ -445,6 +460,13 @@ foreach ($lista_sitios as $s) {
                                                                     onclick="centrarSitio(<?php echo (int)$s['id']; ?>);">
                                                                     Ver en mapa
                                                                 </button>
+                                                                <form method="post" class="d-inline" onsubmit="return confirm('Se eliminará el sitio de la vista activa, pero se conservarán sus históricos.');">
+                                                                    <input type="hidden" name="accion" value="desactivar">
+                                                                    <input type="hidden" name="sitio_id" value="<?php echo (int)$s['id']; ?>">
+                                                                    <button type="submit" class="btn btn-outline-danger btn-xs">
+                                                                        Eliminar
+                                                                    </button>
+                                                                </form>
                                                             </td>
                                                         </tr>
                                                     <?php endforeach; ?>
@@ -528,7 +550,7 @@ foreach ($lista_sitios as $s) {
                 map.removeLayer(tempCircle);
             }
 
-            tempMarker = L.marker([lat, lng]).addTo(map);
+            tempMarker = L.marker([lat, lng], { draggable: true }).addTo(map);
             var radio = parseInt(document.getElementById('radio_geocerca').value || '0', 10);
 
             if (radio > 0) {
@@ -540,23 +562,55 @@ foreach ($lista_sitios as $s) {
                 }).addTo(map);
             }
 
-            document.getElementById('latitud').value = lat.toFixed(6);
-            document.getElementById('longitud').value = lng.toFixed(6);
+            setLatLngInputs(lat, lng);
+
+            tempMarker.on('drag', function (e) {
+                var point = e.target.getLatLng();
+                setLatLngInputs(point.lat, point.lng);
+                if (tempCircle) {
+                    tempCircle.setLatLng(point);
+                }
+            });
+        }
+
+        function setLatLngInputs(lat, lng) {
+            document.getElementById('latitud').value = Number(lat).toFixed(6);
+            document.getElementById('longitud').value = Number(lng).toFixed(6);
         }
 
         function actualizarPreviewRadio() {
-            var lat = parseFloat(document.getElementById('latitud').value || '0');
-            var lng = parseFloat(document.getElementById('longitud').value || '0');
-            if (!lat || !lng) return;
+            var lat = parseFloat(document.getElementById('latitud').value || '');
+            var lng = parseFloat(document.getElementById('longitud').value || '');
+            if (isNaN(lat) || isNaN(lng)) return;
             colocarPreview(lat, lng);
         }
 
         function initEventosFormulario() {
             var radioInput = document.getElementById('radio_geocerca');
+            var latitudInput = document.getElementById('latitud');
+            var longitudInput = document.getElementById('longitud');
             if (radioInput) {
                 radioInput.addEventListener('change', actualizarPreviewRadio);
                 radioInput.addEventListener('keyup', actualizarPreviewRadio);
             }
+            if (latitudInput && longitudInput) {
+                latitudInput.addEventListener('change', actualizarPreviewManual);
+                longitudInput.addEventListener('change', actualizarPreviewManual);
+                latitudInput.addEventListener('keyup', actualizarPreviewManual);
+                longitudInput.addEventListener('keyup', actualizarPreviewManual);
+            }
+        }
+
+        function actualizarPreviewManual() {
+            var lat = parseFloat(document.getElementById('latitud').value || '');
+            var lng = parseFloat(document.getElementById('longitud').value || '');
+
+            if (isNaN(lat) || isNaN(lng)) {
+                return;
+            }
+
+            colocarPreview(lat, lng);
+            map.panTo([lat, lng]);
         }
 
         function resetFormulario() {
@@ -590,6 +644,16 @@ foreach ($lista_sitios as $s) {
             if (markersById[id] && markersById[id].marker) {
                 markersById[id].marker.openPopup();
             }
+        }
+
+        var buscarSitios = document.getElementById('buscar-sitios');
+        if (buscarSitios) {
+            buscarSitios.addEventListener('input', function () {
+                var term = buscarSitios.value.toLowerCase().trim();
+                document.querySelectorAll('.tabla-sitios tbody tr').forEach(function (row) {
+                    row.style.display = !term || row.textContent.toLowerCase().indexOf(term) !== -1 ? '' : 'none';
+                });
+            });
         }
     </script>
 </body>

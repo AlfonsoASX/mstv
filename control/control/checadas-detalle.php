@@ -1,22 +1,9 @@
 <?php
 // checadas-detalle.php
-session_start();
+require_once __DIR__ . '/lib/app.php';
 
-if (!isset($_SESSION['usuario_id'])) {
-    header("Location: index.php");
-    exit;
-}
-
-include 'lib/db.php'; // Debe definir $conexion (mysqli)
-
-// Roles que pueden ver checadas
-$rol = isset($_SESSION['rol_nombre']) ? $_SESSION['rol_nombre'] : '';
-$roles_permitidos = ['ADMIN', 'SUPERVISOR', 'RH', 'NOMINA', 'DUEÑO', 'CLIENTE'];
-
-if (!in_array($rol, $roles_permitidos)) {
-    echo "No tienes permisos para ver esta página.";
-    exit;
-}
+app_require_session();
+app_require_page_permission();
 
 // =======================
 //  HELPERS
@@ -45,7 +32,6 @@ function labelTipoEvento($tipo) {
     switch ($tipo) {
         case 'ENTRADA': return 'Entrada';
         case 'SALIDA':  return 'Salida';
-        case 'RONDIN':  return 'Rondín';
         default:        return $tipo;
     }
 }
@@ -60,8 +46,11 @@ if ($detalle_id > 0) {
     $sql_det = "
         SELECT 
             ra.*,
+            p.id AS personal_id,
             p.nombres,
             p.apellidos,
+            p.fecha_contratacion,
+            p.url_foto_base,
             u.usuario,
             s.nombre  AS sitio_nombre,
             s.direccion AS sitio_direccion,
@@ -70,6 +59,26 @@ if ($detalle_id > 0) {
             t.id       AS turno_id,
             t.hora_inicio,
             t.hora_fin,
+            COALESCE(t.hora_entrada_real, (
+                SELECT r2.fecha_hora
+                FROM registros_asistencia r2
+                WHERE r2.turno_id = ra.turno_id
+                  AND r2.personal_id = ra.personal_id
+                  AND r2.tipo_evento = 'ENTRADA'
+                  AND r2.estado IN ('ACEPTADO', 'PENDIENTE_REVISION')
+                ORDER BY r2.fecha_hora ASC, r2.id ASC
+                LIMIT 1
+            )) AS hora_entrada_real,
+            COALESCE(t.hora_salida_real, (
+                SELECT r3.fecha_hora
+                FROM registros_asistencia r3
+                WHERE r3.turno_id = ra.turno_id
+                  AND r3.personal_id = ra.personal_id
+                  AND r3.tipo_evento = 'SALIDA'
+                  AND r3.estado IN ('ACEPTADO', 'PENDIENTE_REVISION')
+                ORDER BY r3.fecha_hora DESC, r3.id DESC
+                LIMIT 1
+            )) AS hora_salida_real,
             t.es_turno_extra
         FROM registros_asistencia ra
         INNER JOIN personal p  ON p.id       = ra.personal_id
@@ -109,10 +118,16 @@ $sql_lista = "
         ra.esta_dentro_geocerca,
         ra.puntaje_facial,
         ra.sitio_id,
+        p.id AS personal_id,
         p.nombres,
         p.apellidos,
+        p.fecha_contratacion,
         s.nombre AS sitio_nombre,
         t.id     AS turno_id,
+        t.hora_inicio,
+        t.hora_fin,
+        t.hora_entrada_real,
+        t.hora_salida_real,
         t.es_turno_extra
     FROM registros_asistencia ra
     INNER JOIN personal p ON p.id = ra.personal_id
@@ -142,8 +157,10 @@ $detalle_puntaje = null;
 $detalle_liveness = false;
 $detalle_comentarios = "";
 $detalle_url_selfie = "";
+$detalle_url_foto_base = "";
 $detalle_turno_id = null;
 $detalle_turno_inicio = $detalle_turno_fin = "";
+$detalle_entrada_real = $detalle_salida_real = "";
 $detalle_turno_extra = false;
 $detalle_link_mapa = "#";
 
@@ -163,10 +180,13 @@ if ($detalle) {
     $detalle_liveness   = ((int)$detalle['verificado_vida'] === 1);
     $detalle_comentarios= trim((string)$detalle['comentarios']);
     $detalle_url_selfie = trim((string)$detalle['url_selfie']);
+    $detalle_url_foto_base = trim((string)$detalle['url_foto_base']);
 
     $detalle_turno_id   = $detalle['turno_id'];
     $detalle_turno_inicio = $detalle['hora_inicio'];
     $detalle_turno_fin    = $detalle['hora_fin'];
+    $detalle_entrada_real = $detalle['hora_entrada_real'] ?? '';
+    $detalle_salida_real  = $detalle['hora_salida_real'] ?? '';
     $detalle_turno_extra  = ((int)$detalle['es_turno_extra'] === 1);
 
     $detalle_link_mapa = "https://www.google.com/maps?q=" . urlencode($detalle_lat . "," . $detalle_lng);
@@ -337,6 +357,25 @@ if ($detalle) {
                                                 </div>
                                             </div>
 
+                                            <div class="row">
+                                                <div class="col-md-6 mb-2">
+                                                    <div class="meta-label">Entrada programada</div>
+                                                    <div class="meta-value"><?php echo app_datetime($detalle_turno_inicio); ?></div>
+                                                </div>
+                                                <div class="col-md-6 mb-2">
+                                                    <div class="meta-label">Entrada real</div>
+                                                    <div class="meta-value"><?php echo app_datetime($detalle_entrada_real); ?></div>
+                                                </div>
+                                                <div class="col-md-6 mb-2">
+                                                    <div class="meta-label">Salida programada</div>
+                                                    <div class="meta-value"><?php echo app_datetime($detalle_turno_fin); ?></div>
+                                                </div>
+                                                <div class="col-md-6 mb-2">
+                                                    <div class="meta-label">Salida real</div>
+                                                    <div class="meta-value"><?php echo app_datetime($detalle_salida_real); ?></div>
+                                                </div>
+                                            </div>
+
                                             <div class="mb-2">
                                                 <div class="meta-label">Sitio</div>
                                                 <div class="meta-value">
@@ -411,22 +450,42 @@ if ($detalle) {
 
                                         </div>
                                         <div class="col-md-5">
-                                            <div class="mb-2">
-                                                <div class="meta-label">Selfie capturada</div>
-                                            </div>
-                                            <div class="text-center mb-3">
-                                                <?php if ($detalle_url_selfie): ?>
-                                                    <a href="<?php echo htmlspecialchars($detalle_url_selfie); ?>" target="_blank">
-                                                        <img src="<?php echo htmlspecialchars($detalle_url_selfie); ?>"
-                                                             alt="Selfie de checada"
-                                                             class="selfie-detalle shadow-sm">
-                                                    </a>
-                                                    <div class="mt-1" style="font-size:0.8rem;">
-                                                        Haz clic para abrir en tamaño completo.
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="mb-2">
+                                                        <div class="meta-label">Foto base del colaborador</div>
                                                     </div>
-                                                <?php else: ?>
-                                                    <span class="text-muted">Sin foto registrada</span>
-                                                <?php endif; ?>
+                                                    <div class="text-center mb-3">
+                                                        <?php if ($detalle_url_foto_base): ?>
+                                                            <a href="<?php echo htmlspecialchars($detalle_url_foto_base); ?>" target="_blank">
+                                                                <img src="<?php echo htmlspecialchars($detalle_url_foto_base); ?>"
+                                                                     alt="Foto base del colaborador"
+                                                                     class="selfie-detalle shadow-sm">
+                                                            </a>
+                                                        <?php else: ?>
+                                                            <span class="text-muted">Sin foto base registrada</span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="mb-2">
+                                                        <div class="meta-label">Selfie capturada</div>
+                                                    </div>
+                                                    <div class="text-center mb-3">
+                                                        <?php if ($detalle_url_selfie): ?>
+                                                            <a href="<?php echo htmlspecialchars($detalle_url_selfie); ?>" target="_blank">
+                                                                <img src="<?php echo htmlspecialchars($detalle_url_selfie); ?>"
+                                                                     alt="Selfie de checada"
+                                                                     class="selfie-detalle shadow-sm">
+                                                            </a>
+                                                            <div class="mt-1" style="font-size:0.8rem;">
+                                                                Comparación visual disponible en esta vista.
+                                                            </div>
+                                                        <?php else: ?>
+                                                            <span class="text-muted">Sin foto registrada</span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </div>
                                             </div>
 
                                             <div class="mt-3">
@@ -467,8 +526,11 @@ if ($detalle_comentarios === '') {
                                                 <tr>
                                                     <th>ID</th>
                                                     <th>Fecha / Hora</th>
+                                                    <th>No. empleado</th>
                                                     <th>Guardia</th>
                                                     <th>Sitio</th>
+                                                    <th>Programada</th>
+                                                    <th>Real</th>
                                                     <th>Tipo</th>
                                                     <th>Estado</th>
                                                     <th>Geocerca</th>
@@ -480,7 +542,7 @@ if ($detalle_comentarios === '') {
                                             <tbody>
                                                 <?php if (empty($checadas)): ?>
                                                     <tr>
-                                                        <td colspan="10" class="text-center text-muted">
+                                                        <td colspan="13" class="text-center text-muted">
                                                             No hay checadas registradas.
                                                         </td>
                                                     </tr>
@@ -498,8 +560,21 @@ if ($detalle_comentarios === '') {
                                                         <tr>
                                                             <td><?php echo (int)$c['id']; ?></td>
                                                             <td><?php echo htmlspecialchars($c['fecha_hora']); ?></td>
+                                                            <td><?php echo app_h(app_employee_number($c)); ?></td>
                                                             <td><?php echo htmlspecialchars($nombre_guardia); ?></td>
                                                             <td><?php echo htmlspecialchars($c['sitio_nombre']); ?></td>
+                                                            <td>
+                                                                <small>
+                                                                    E: <?php echo app_datetime($c['hora_inicio'] ?? null); ?><br>
+                                                                    S: <?php echo app_datetime($c['hora_fin'] ?? null); ?>
+                                                                </small>
+                                                            </td>
+                                                            <td>
+                                                                <small>
+                                                                    E: <?php echo app_datetime($c['hora_entrada_real'] ?? null); ?><br>
+                                                                    S: <?php echo app_datetime($c['hora_salida_real'] ?? null); ?>
+                                                                </small>
+                                                            </td>
                                                             <td><?php echo htmlspecialchars($tipo_lbl); ?></td>
                                                             <td><?php echo $estado_badge; ?></td>
                                                             <td>

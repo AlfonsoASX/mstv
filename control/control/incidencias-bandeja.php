@@ -1,15 +1,9 @@
 <?php
 // incidencias-bandeja.php
-session_start();
+require_once __DIR__ . '/lib/app.php';
 
-// Conexión central
-require_once 'lib/db.php';
-
-// Si no hay sesión, fuera
-if (!isset($_SESSION['usuario_id'])) {
-    header('Location: index.php');
-    exit;
-}
+app_require_session();
+app_require_page_permission();
 
 // Rol del usuario (por si luego quieres restringir)
 $rol_nombre = isset($_SESSION['rol_nombre']) ? $_SESSION['rol_nombre'] : null;

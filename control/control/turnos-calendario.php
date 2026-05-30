@@ -1,13 +1,9 @@
 <?php
 // turnos-calendario.php
-session_start();
-include 'lib/db.php';
+require_once __DIR__ . '/lib/app.php';
 
-// Verificar sesión
-if (!isset($_SESSION['usuario_id']) || empty($_SESSION['usuario_id'])) {
-    header("Location: index.php");
-    exit;
-}
+app_require_session();
+app_require_page_permission();
 
 // Opcional: podrías usar el rol para permisos finos
 $rol_nombre = isset($_SESSION['rol_nombre']) ? $_SESSION['rol_nombre'] : '';

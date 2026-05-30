@@ -1,22 +1,9 @@
 <?php
 // checadas-lista.php
-session_start();
+require_once __DIR__ . '/lib/app.php';
 
-if (!isset($_SESSION['usuario_id'])) {
-    header("Location: index.php");
-    exit;
-}
-
-include 'lib/db.php'; // Debe definir $conexion (mysqli)
-
-// Roles que pueden ver checadas (ajusta a tu gusto)
-$rol = isset($_SESSION['rol_nombre']) ? $_SESSION['rol_nombre'] : '';
-$roles_permitidos = ['ADMIN', 'SUPERVISOR', 'RH', 'NOMINA', 'DUEÑO', 'CLIENTE'];
-
-if (!in_array($rol, $roles_permitidos)) {
-    echo "No tienes permisos para ver esta página.";
-    exit;
-}
+app_require_session();
+app_require_page_permission();
 
 // Helpers
 function limpiar($txt) {
@@ -62,9 +49,10 @@ $sitio_id    = isset($_GET['sitio_id']) ? (int)$_GET['sitio_id'] : 0;
 $personal_id = isset($_GET['personal_id']) ? (int)$_GET['personal_id'] : 0;
 $tipo_evento = isset($_GET['tipo_evento']) ? limpiar($_GET['tipo_evento']) : '';
 $estado      = isset($_GET['estado']) ? limpiar($_GET['estado']) : '';
+$buscar      = isset($_GET['buscar']) ? limpiar($_GET['buscar']) : '';
 
 // Validaciones simples
-$tipos_validos   = ['ENTRADA','SALIDA','RONDIN'];
+$tipos_validos   = ['ENTRADA','SALIDA'];
 $estados_validos = ['ACEPTADO','RECHAZADO_ROSTRO','RECHAZADO_GPS','PENDIENTE_REVISION'];
 
 if (!in_array($tipo_evento, $tipos_validos)) {
@@ -101,6 +89,17 @@ if ($fecha_desde !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha_desde)) {
 if ($fecha_hasta !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha_hasta)) {
     $fh_esc = mysqli_real_escape_string($conexion, $fecha_hasta . " 23:59:59");
     $cond .= " AND ra.fecha_hora <= '$fh_esc' ";
+}
+if ($buscar !== '') {
+    $buscarEsc = mysqli_real_escape_string($conexion, $buscar);
+    $cond .= " AND (
+        p.nombres LIKE '%{$buscarEsc}%'
+        OR p.apellidos LIKE '%{$buscarEsc}%'
+        OR s.nombre LIKE '%{$buscarEsc}%'
+        OR ra.tipo_evento LIKE '%{$buscarEsc}%'
+        OR ra.estado LIKE '%{$buscarEsc}%'
+        OR CONCAT(SUBSTRING(YEAR(p.fecha_contratacion), 3, 2), LPAD(p.id, 4, '0')) LIKE '%{$buscarEsc}%'
+    ) ";
 }
 
 // =======================
@@ -148,12 +147,37 @@ $checadas = [];
 $sql_lista = "
     SELECT 
         ra.*,
+        p.id AS personal_id,
         p.nombres,
         p.apellidos,
-        s.nombre AS sitio_nombre
+        p.fecha_contratacion,
+        s.nombre AS sitio_nombre,
+        t.hora_inicio AS hora_programada_entrada,
+        COALESCE(t.hora_entrada_real, (
+            SELECT r2.fecha_hora
+            FROM registros_asistencia r2
+            WHERE r2.turno_id = ra.turno_id
+              AND r2.personal_id = ra.personal_id
+              AND r2.tipo_evento = 'ENTRADA'
+              AND r2.estado IN ('ACEPTADO', 'PENDIENTE_REVISION')
+            ORDER BY r2.fecha_hora ASC, r2.id ASC
+            LIMIT 1
+        )) AS hora_real_entrada,
+        t.hora_fin AS hora_programada_salida,
+        COALESCE(t.hora_salida_real, (
+            SELECT r3.fecha_hora
+            FROM registros_asistencia r3
+            WHERE r3.turno_id = ra.turno_id
+              AND r3.personal_id = ra.personal_id
+              AND r3.tipo_evento = 'SALIDA'
+              AND r3.estado IN ('ACEPTADO', 'PENDIENTE_REVISION')
+            ORDER BY r3.fecha_hora DESC, r3.id DESC
+            LIMIT 1
+        )) AS hora_real_salida
     FROM registros_asistencia ra
     INNER JOIN personal p ON p.id = ra.personal_id
     INNER JOIN sitios s   ON s.id = ra.sitio_id
+    LEFT JOIN turnos t    ON t.id = ra.turno_id
     $cond
     ORDER BY ra.fecha_hora DESC
     LIMIT $por_pagina OFFSET $offset
@@ -276,7 +300,7 @@ function badgeEstado($estado) {
                                 <div class="ms-3">
                                     <h5 class="mb-0">Checadas y evidencias</h5>
                                     <small class="text-muted">
-                                        Registros de entrada, salida y rondines con foto, geocerca y validación facial.
+                                        Registros de entrada y salida con foto, geocerca y validación de evidencia.
                                     </small>
                                 </div>
                             </header>
@@ -331,7 +355,7 @@ function badgeEstado($estado) {
                                         </div>
                                         <div class="">
                                             <p class="w-value"><?php echo $total_aceptadas; ?></p>
-                                            <h5 class="">Aceptadas (rostro + GPS)</h5>
+                                            <h5 class="">Aceptadas</h5>
                                         </div>
                                     </div>
                                 </div>
@@ -391,8 +415,15 @@ function badgeEstado($estado) {
                                         </div>
                                     </div>
 
-                                    <form method="get" class="mt-2">
-                                        <div class="mb-2">
+	                                    <form method="get" class="mt-2">
+	                                        <div class="mb-2">
+	                                            <div class="filter-label">Buscar</div>
+	                                            <input type="search" name="buscar"
+	                                                   class="form-control form-control-sm"
+	                                                   placeholder="No. empleado, guardia, sitio, estado..."
+	                                                   value="<?php echo htmlspecialchars($buscar); ?>">
+	                                        </div>
+	                                        <div class="mb-2">
                                             <div class="filter-label">Fecha desde</div>
                                             <input type="date" name="fecha_desde"
                                                    class="form-control form-control-sm"
@@ -434,7 +465,6 @@ function badgeEstado($estado) {
                                                 <option value="">Todos</option>
                                                 <option value="ENTRADA" <?php echo $tipo_evento=='ENTRADA'?'selected':''; ?>>Entrada</option>
                                                 <option value="SALIDA" <?php echo $tipo_evento=='SALIDA'?'selected':''; ?>>Salida</option>
-                                                <option value="RONDIN" <?php echo $tipo_evento=='RONDIN'?'selected':''; ?>>Rondín</option>
                                             </select>
                                         </div>
                                         <div class="mb-3">
@@ -478,7 +508,10 @@ function badgeEstado($estado) {
                                                 <tr>
                                                     <th>Fecha</th>
                                                     <th>Sitio</th>
+                                                    <th>No. empleado</th>
                                                     <th>Guardia</th>
+                                                    <th>Programada</th>
+                                                    <th>Real</th>
                                                     <th>Tipo</th>
                                                     <th>Estado</th>
                                                     <th>Geo</th>
@@ -491,7 +524,7 @@ function badgeEstado($estado) {
                                             <tbody>
                                                 <?php if (empty($checadas)): ?>
                                                     <tr>
-                                                        <td colspan="10" class="text-center text-muted py-3">
+                                                        <td colspan="13" class="text-center text-muted py-3">
                                                             No se encontraron checadas con los filtros actuales.
                                                         </td>
                                                     </tr>
@@ -505,13 +538,30 @@ function badgeEstado($estado) {
                                                                 ?>
                                                             </td>
                                                             <td><?php echo htmlspecialchars($c['sitio_nombre']); ?></td>
+                                                            <td><?php echo app_h(app_employee_number($c)); ?></td>
                                                             <td><?php echo htmlspecialchars($c['nombres'].' '.$c['apellidos']); ?></td>
+                                                            <td>
+                                                                <small>
+                                                                    Entrada: <?php echo app_datetime($c['hora_programada_entrada'] ?? null); ?><br>
+                                                                    Salida: <?php echo app_datetime($c['hora_programada_salida'] ?? null); ?>
+                                                                </small>
+                                                            </td>
+                                                            <td>
+                                                                <small>
+                                                                    Entrada: <?php echo app_datetime($c['hora_real_entrada'] ?? null); ?><br>
+                                                                    Salida: <?php echo app_datetime($c['hora_real_salida'] ?? null); ?>
+                                                                </small>
+                                                            </td>
                                                             <td>
                                                                 <?php
                                                                     $t = $c['tipo_evento'];
-                                                                    if ($t == 'ENTRADA') echo '<span class="badge bg-primary">Entrada</span>';
-                                                                    elseif ($t == 'SALIDA') echo '<span class="badge bg-info">Salida</span>';
-                                                                    else echo '<span class="badge bg-dark">Rondín</span>';
+                                                                    if ($t == 'ENTRADA') {
+                                                                        echo '<span class="badge bg-primary">Entrada</span>';
+                                                                    } elseif ($t == 'SALIDA') {
+                                                                        echo '<span class="badge bg-info">Salida</span>';
+                                                                    } else {
+                                                                        echo '<span class="badge bg-dark">'.htmlspecialchars($t).'</span>';
+                                                                    }
                                                                 ?>
                                                             </td>
                                                             <td><?php echo badgeEstado($c['estado']); ?></td>

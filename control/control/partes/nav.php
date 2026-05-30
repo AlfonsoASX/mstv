@@ -4,12 +4,12 @@
 
             <ul class="navbar-item theme-brand flex-row  text-center">
                 <li class="nav-item theme-logo">
-                    <a href="index.html">
+                    <a href="dashboard.php">
                         <img src="https://mstv.com.mx/assets/logonuevo.png" class="navbar-lo go" alt="logo">
                     </a>
                 </li>
                 <li class="nav-item theme-text">
-                    <a href="index.html" class="nav-link"> MSTV </a>
+                    <a href="dashboard.php" class="nav-link"> MSTV </a>
                 </li>
             </ul>
 

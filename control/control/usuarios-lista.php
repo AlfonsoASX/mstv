@@ -1,12 +1,9 @@
 <?php
 // usuarios-lista.php
-session_start();
-include 'lib/db.php'; // Debe definir $conexion (mysqli)
+require_once __DIR__ . '/lib/app.php';
 
-if (!isset($_SESSION['usuario_id'])) {
-    header("Location: index.php");
-    exit;
-}
+app_require_session();
+app_require_page_permission();
 
 // Helper para imprimir HTML seguro evitando el deprecated (null)
 function h($txt) {
@@ -22,9 +19,12 @@ $sql = "
         u.email,
         u.esta_activo,
         u.fecha_creacion,
-        r.nombre AS rol_nombre
+        r.nombre AS rol_nombre,
+        p.id AS personal_id,
+        p.fecha_contratacion
     FROM usuarios u
     LEFT JOIN roles r ON r.id = u.rol_id
+    LEFT JOIN personal p ON p.usuario_id = u.id
     ORDER BY u.usuario ASC
 ";
 if ($res = mysqli_query($conexion, $sql)) {
@@ -141,6 +141,7 @@ if ($res = mysqli_query($conexion, $sql)) {
                                             <thead>
                                                 <tr>
                                                     <th>ID</th>
+                                                    <th>No. empleado</th>
                                                     <th>Usuario</th>
                                                     <th>Email</th>
                                                     <th>Rol</th>
@@ -158,9 +159,11 @@ if ($res = mysqli_query($conexion, $sql)) {
                                                     $rolNombre   = h($u['rol_nombre']);
                                                     $estaActivo  = (int)$u['esta_activo'] === 1;
                                                     $fechaCreac  = h($u['fecha_creacion']);
+                                                    $numeroEmpleado = app_employee_number($u);
                                                 ?>
                                                 <tr data-id="<?php echo $id; ?>">
                                                     <td><?php echo $id; ?></td>
+                                                    <td><?php echo h($numeroEmpleado); ?></td>
                                                     <td><?php echo $usuario; ?></td>
                                                     <td><?php echo $email; ?></td>
                                                     <td><?php echo $rolNombre; ?></td>
