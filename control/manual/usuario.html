@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Manual de Usuario | MSTV Control</title>
+    <link rel="stylesheet" href="assets/manual.css">
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="index.html">
+            <span class="brand-mark">M</span>
+            <span>MSTV Control Wiki</span>
+        </a>
+        <nav class="top-actions">
+            <a class="btn primary" href="usuario.html">Usuario</a>
+            <a class="btn ghost" href="tecnico.html">Técnico</a>
+            <button class="btn" onclick="window.print()" type="button">Imprimir / PDF</button>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero compact">
+            <span class="eyebrow">Manual de usuario final</span>
+            <h1>Cómo operar MSTV Control paso a paso.</h1>
+            <p class="lead">
+                Este manual explica el uso diario del sistema para RH, supervisores, nómina, administradores, clientes y guardias. Está escrito para enseñar qué hace cada módulo, cuándo usarlo y qué políticas aplica el sistema.
+            </p>
+            <div class="search-box">
+                <input type="search" data-search-input="#manual-content" placeholder="Buscar en el manual de usuario...">
+            </div>
+        </section>
+
+        <div class="layout">
+            <aside class="sidebar">
+                <strong>Contenido</strong>
+                <ul class="nav-list">
+                    <li><a href="#inicio">Inicio y conceptos</a></li>
+                    <li><a href="#acceso">Acceso y navegación</a></li>
+                    <li><a href="#modulos">Módulos del sistema</a></li>
+                    <li><a href="#app-movil">App móvil</a></li>
+                    <li><a href="#flujos">Flujos guiados</a></li>
+                    <li><a href="#politicas">Políticas aplicadas</a></li>
+                    <li><a href="#historias">Historias de usuario</a></li>
+                    <li><a href="#buenas-practicas">Buenas prácticas</a></li>
+                    <li><a href="#glosario">Glosario</a></li>
+                </ul>
+            </aside>
+
+            <div id="manual-content" class="content">
+                <section id="inicio" class="section highlight" data-search-item>
+                    <div class="section-header">
+                        <div>
+                            <span class="eyebrow">Panorama</span>
+                            <h2>Qué es MSTV Control</h2>
+                        </div>
+                    </div>
+                    <p>
+                        MSTV Control es una plataforma para administrar operación de personal, turnos, checadas, incidencias, comunicación interna, RH, nómina, reportes y permisos. Tiene dos entradas principales:
+                    </p>
+                    <div class="grid two">
+                        <div class="card accent">
+                            <h3>Panel Control</h3>
+                            <p>Usado por administración, RH, supervisores, nómina, clientes y dueños para consultar información y operar módulos internos.</p>
+                            <span class="badge">/control/index.php</span>
+                        </div>
+                        <div class="card accent">
+                            <h3>App móvil</h3>
+                            <p>Usada por guardias y colaboradores para ver su turno, checar entrada/salida, reportar incidencias y enviar mensajes.</p>
+                            <span class="badge">/app/index.html</span>
+                        </div>
+                    </div>
+                    <div class="callout">
+                        <strong>Idea clave:</strong> el sistema busca que cada registro operativo tenga evidencia: usuario, horario, sitio, geocerca, selfie, estado y bitácora.
+                    </div>
+                </section>
+
+                <section id="acceso" class="section" data-search-item>
+                    <div class="section-header">
+                        <div>
+                            <span class="eyebrow">Primeros pasos</span>
+                            <h2>Acceso, menú y navegación</h2>
+                        </div>
+                    </div>
+                    <ol class="steps">
+                        <li><strong>Entrar al sistema.</strong> Abre la URL de Control, captura usuario y contraseña, y presiona iniciar sesión.</li>
+                        <li><strong>Usar el menú lateral.</strong> El menú muestra solo las secciones permitidas para tu rol. Si no ves una opción, solicita revisión de permisos.</li>
+                        <li><strong>Buscar en listas.</strong> Las tablas principales incluyen buscadores para filtrar por colaborador, No. empleado, sitio, estado o concepto.</li>
+                        <li><strong>Salir correctamente.</strong> Usa el botón Salir al final del menú para cerrar la sesión.</li>
+                    </ol>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Perfil</th><th>Uso principal</th><th>Notas</th></tr></thead>
+                            <tbody>
+                                <tr><td>Guardia</td><td>App móvil, checadas, incidencias y chat.</td><td>No administra módulos de Control.</td></tr>
+                                <tr><td>Supervisor</td><td>Turnos, checadas, incidencias, reportes y chat.</td><td>Puede revisar operación de sitios asignados.</td></tr>
+                                <tr><td>RH</td><td>Personal, vacaciones, bajas, documentación, faltas y descansos.</td><td>Debe cuidar la calidad de datos de colaboradores.</td></tr>
+                                <tr><td>Nómina</td><td>Cálculo, capturas, exportación, recibos y reportes.</td><td>Debe revisar incidencias antes de cerrar periodo.</td></tr>
+                                <tr><td>DUEÑO</td><td>Acceso completo fijo.</td><td>No queda bloqueado por permisos.</td></tr>
+                                <tr><td>Cliente</td><td>Dashboard, incidencias y reportes autorizados.</td><td>Visibilidad limitada según configuración.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section id="modulos" class="section" data-search-item>
+                    <div class="section-header">
+                        <div>
+                            <span class="eyebrow">Recorrido operativo</span>
+                            <h2>Módulos del sistema</h2>
+                        </div>
+                    </div>
+                    <div class="grid three module-index">
+                        <a class="card module-card" href="#modulo-dashboard"><span class="module-card-kicker">Ver módulo</span><h3>Dashboard</h3><p>Resume puntualidad, incidencias, guardias activos, turnos extra y actividad reciente.</p></a>
+                        <a class="card module-card" href="#modulo-turnos"><span class="module-card-kicker">Ver módulo</span><h3>Turnos</h3><p>Permite consultar calendario, crear turnos individuales, generar horarios recurrentes y administrar turnos extra.</p></a>
+                        <a class="card module-card" href="#modulo-checadas"><span class="module-card-kicker">Ver módulo</span><h3>Checadas</h3><p>Muestra entradas/salidas, hora programada, hora real, geocerca, selfie, puntaje facial y estado.</p></a>
+                        <a class="card module-card" href="#modulo-incidencias"><span class="module-card-kicker">Ver módulo</span><h3>Incidencias</h3><p>Centraliza reportes levantados desde app o Control, con prioridad, estado, sitio y responsable.</p></a>
+                        <a class="card module-card" href="#modulo-bitacora"><span class="module-card-kicker">Ver módulo</span><h3>Bitácora</h3><p>Registra actividad del sistema: acciones, checadas, incidencias y eventos operativos.</p></a>
+                        <a class="card module-card" href="#modulo-chat"><span class="module-card-kicker">Ver módulo</span><h3>Chat</h3><p>Canal interno entre colaboradores y administración, con refresco automático y moderación básica.</p></a>
+                        <a class="card module-card" href="#modulo-personal"><span class="module-card-kicker">Ver módulo</span><h3>Personal</h3><p>Alta, edición, ficha integral, foto base, datos laborales, bancarios, emergencia, nómina y prestaciones.</p></a>
+                        <a class="card module-card" href="#modulo-sitios"><span class="module-card-kicker">Ver módulo</span><h3>Sitios</h3><p>Catálogo de clientes/sitios con ubicación, radio de geocerca y datos necesarios para checadas.</p></a>
+                        <a class="card module-card" href="#modulo-nomina"><span class="module-card-kicker">Ver módulo</span><h3>Nómina</h3><p>Captura incidencias económicas, calcula periodos, genera recibos internos y exporta CSV.</p></a>
+                        <a class="card module-card" href="#modulo-reportes"><span class="module-card-kicker">Ver módulo</span><h3>Reportes</h3><p>Puntualidad, incidencias y costo de extras para análisis operativo.</p></a>
+                        <a class="card module-card" href="#modulo-usuarios-roles"><span class="module-card-kicker">Ver módulo</span><h3>Usuarios y roles</h3><p>Administra cuentas, resetea contraseñas y configura permisos por sección/página.</p></a>
+                        <a class="card module-card" href="#modulo-configuracion"><span class="module-card-kicker">Ver módulo</span><h3>Configuración</h3><p>Variables globales de tolerancia, vacaciones, facial, nómina, préstamos, caja y descuentos.</p></a>
+                        <a class="card module-card" href="#modulo-app-movil"><span class="module-card-kicker">Ver módulo</span><h3>App móvil</h3><p>Entrada de campo para consultar turno, checar, reportar incidencias, ver bitácora y usar chat.</p></a>
+                    </div>
+                    <nav class="module-subnav" aria-label="Navegación rápida de módulos">
+                        <a href="#modulo-dashboard">Dashboard</a>
+                        <a href="#modulo-turnos">Turnos</a>
+                        <a href="#modulo-checadas">Checadas</a>
+                        <a href="#modulo-incidencias">Incidencias</a>
+                        <a href="#modulo-bitacora">Bitácora</a>
+                        <a href="#modulo-chat">Chat</a>
+                        <a href="#modulo-personal">Personal</a>
+                        <a href="#modulo-sitios">Sitios</a>
+                        <a href="#modulo-nomina">Nómina</a>
+                        <a href="#modulo-reportes">Reportes</a>
+                        <a href="#modulo-usuarios-roles">Usuarios y roles</a>
+                        <a href="#modulo-configuracion">Configuración</a>
+                        <a href="#modulo-app-movil">App móvil</a>
+                    </nav>
+
+                    <div class="module-deep">
+                        <article id="modulo-dashboard" class="module-detail">
+                            <h3>Dashboard <span class="badge ok">Operación diaria</span></h3>
+                            <p>El dashboard es la primera lectura del estado general: puntualidad, incidencias recientes, guardias activos, turnos extra, checadas por día y resumen por sitio. Sirve para detectar riesgos antes de entrar al detalle operativo.</p>
+                            <div class="mini-columns">
+                                <div><strong>Lo usan</strong><ul><li>Dirección</li><li>Supervisión</li><li>RH</li><li>Cliente autorizado</li></ul></div>
+                                <div><strong>Acciones</strong><ul><li>Revisar KPIs</li><li>Identificar sitios con baja puntualidad</li><li>Abrir incidencias o checadas relacionadas</li></ul></div>
+                                <div><strong>Errores comunes</strong><ul><li>Interpretar porcentajes sin revisar periodo</li><li>No validar sitios con pocos registros</li><li>Confundir checadas rechazadas con ausencias</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Cómo leerlo correctamente</h4>
+                                <p>Úsalo como semáforo inicial, no como cierre definitivo. Si un indicador aparece fuera de rango, entra al módulo relacionado para confirmar detalle: checadas para puntualidad, incidencias para alertas y turnos para cobertura.</p>
+                                <ul>
+                                    <li>Primero revisa el periodo o fecha que está mostrando la pantalla.</li>
+                                    <li>Después compara sitios con mayor actividad contra sitios con alertas.</li>
+                                    <li>Finalmente abre la lista fuente antes de tomar decisiones de nómina o disciplina.</li>
+                                </ul>
+                            </div>
+                            <div class="shot-grid">
+                                <a class="shot" href="assets/screens/dashboard-general.png" target="_blank"><img src="assets/screens/dashboard-general.png" alt="Dashboard general"><figcaption>Vista general con KPIs y resumen por sitio.</figcaption></a>
+                            </div>
+                        </article>
+
+                        <article id="modulo-turnos" class="module-detail">
+                            <h3>Turnos <span class="badge ok">Agenda operativa</span></h3>
+                            <p>El módulo de turnos organiza quién debe estar, en qué sitio y a qué hora. Permite ver calendario, capturar turnos individuales, generar horarios recurrentes por semana o mes y registrar turnos extra.</p>
+                            <div class="mini-columns">
+                                <div><strong>Pasos clave</strong><ul><li>Seleccionar colaborador activo</li><li>Elegir sitio obligatorio</li><li>Definir inicio/fin</li><li>Generar semana o mes</li></ul></div>
+                                <div><strong>Campos críticos</strong><ul><li>Hora inicio</li><li>Hora fin</li><li>Sitio/geocerca</li><li>Tipo extra u ordinario</li></ul></div>
+                                <div><strong>Reglas</strong><ul><li>Turno nocturno termina al día siguiente</li><li>Se evitan duplicados por hora inicio</li><li>La app depende de turnos reales</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Flujo recomendado</h4>
+                                <p>Para operación diaria, confirma primero el sitio y el colaborador activo. Si el horario se repite, usa generación semanal o mensual para evitar capturar día por día; después revisa el calendario para detectar huecos o duplicados.</p>
+                                <ul>
+                                    <li>Si la hora fin es menor o igual a la hora inicio, trátalo como turno nocturno.</li>
+                                    <li>No generes turnos sin sitio: la app necesita geocerca para permitir checadas.</li>
+                                    <li>Antes de nómina, revisa turnos extra y turnos ordinarios del periodo.</li>
+                                </ul>
+                            </div>
+                            <div class="shot-grid">
+                                <a class="shot" href="assets/screens/turnos-calendario.png" target="_blank"><img src="assets/screens/turnos-calendario.png" alt="Calendario de turnos"><figcaption>Calendario para revisar cobertura.</figcaption></a>
+                                <a class="shot" href="assets/screens/turnos-asignacion.png" target="_blank"><img src="assets/screens/turnos-asignacion.png" alt="Asignación de turnos"><figcaption>Generación y asignación de horarios.</figcaption></a>
+                            </div>
+                        </article>
+
+                        <article id="modulo-checadas" class="module-detail">
+                            <h3>Checadas <span class="badge warn">Evidencia</span></h3>
+                            <p>Checadas muestra entrada/salida real contra horario programado, estado de geocerca, selfie, vida, puntaje facial y comentarios. Es el punto de auditoría para aceptar, revisar o explicar registros.</p>
+                            <div class="mini-columns">
+                                <div><strong>Qué revisar</strong><ul><li>Hora programada</li><li>Hora real</li><li>Estado</li><li>Score facial</li></ul></div>
+                                <div><strong>Estados</strong><ul><li>ACEPTADO</li><li>RECHAZADO_GPS</li><li>RECHAZADO_ROSTRO</li><li>PENDIENTE_REVISION</li></ul></div>
+                                <div><strong>Errores comunes</strong><ul><li>Sin foto base</li><li>Selfie inválida</li><li>Fuera de geocerca</li><li>Turno no asignado</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Checklist de revisión</h4>
+                                <p>Una checada confiable debe tener turno relacionado, hora programada, hora real, ubicación dentro de geocerca y evidencia de selfie. Si una parte falta, no la borres: márcala o consúltala como pendiente para conservar trazabilidad.</p>
+                                <ul>
+                                    <li>Compara siempre hora programada contra hora real.</li>
+                                    <li>Si aparece PENDIENTE_REVISION, revisa foto base, selfie y GPS.</li>
+                                    <li>Si falta turno, corrige asignación antes de interpretar la asistencia.</li>
+                                </ul>
+                            </div>
+                            <div class="shot-grid">
+                                <a class="shot" href="assets/screens/checadas-lista.png" target="_blank"><img src="assets/screens/checadas-lista.png" alt="Lista de checadas"><figcaption>Lista con filtros, horarios y estados.</figcaption></a>
+                                <a class="shot" href="assets/screens/checadas-detalle.png" target="_blank"><img src="assets/screens/checadas-detalle.png" alt="Detalle de checada"><figcaption>Detalle operativo de evidencia.</figcaption></a>
+                            </div>
+                        </article>
+
+                        <article id="modulo-incidencias" class="module-detail">
+                            <h3>Incidencias <span class="badge danger">Atención</span></h3>
+                            <p>Centraliza reportes de seguridad, operación o servicio. Cada incidencia debe revisarse por prioridad, sitio, responsable y estado para cerrar el ciclo de atención.</p>
+                            <div class="mini-columns">
+                                <div><strong>Acciones</strong><ul><li>Filtrar por prioridad</li><li>Revisar descripción</li><li>Dar seguimiento</li><li>Cerrar cuando proceda</li></ul></div>
+                                <div><strong>Campos</strong><ul><li>Sitio</li><li>Reportó</li><li>Tipo</li><li>Prioridad</li><li>Estado</li></ul></div>
+                                <div><strong>Buenas prácticas</strong><ul><li>No dejar críticas abiertas</li><li>Registrar notas claras</li><li>Relacionar con turno si aplica</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Ciclo de atención</h4>
+                                <p>La incidencia debe pasar de reporte a seguimiento y cierre. Para que sirva como evidencia, la descripción debe ser clara, el sitio correcto y el estado debe actualizarse cuando alguien atienda el caso.</p>
+                                <ul>
+                                    <li>Prioriza primero incidentes críticos o relacionados con cliente.</li>
+                                    <li>Usa notas de seguimiento para evitar perder contexto entre turnos.</li>
+                                    <li>Revisa reportes de incidencias para detectar patrones repetidos.</li>
+                                </ul>
+                            </div>
+                            <div class="shot-grid">
+                                <a class="shot" href="assets/screens/incidencias-bandeja.png" target="_blank"><img src="assets/screens/incidencias-bandeja.png" alt="Bandeja de incidencias"><figcaption>Bandeja operativa de incidencias.</figcaption></a>
+                            </div>
+                        </article>
+
+                        <article id="modulo-bitacora" class="module-detail">
+                            <h3>Bitácora <span class="badge">Auditoría</span></h3>
+                            <p>La bitácora reúne movimientos del sistema, checadas recientes e incidencias recientes. Ayuda a responder quién hizo qué, cuándo ocurrió y qué registros se afectaron.</p>
+                            <div class="mini-columns">
+                                <div><strong>Uso</strong><ul><li>Auditoría interna</li><li>Seguimiento de cambios</li><li>Revisión de operación reciente</li></ul></div>
+                                <div><strong>Datos</strong><ul><li>Fecha</li><li>Usuario</li><li>Acción</li><li>Tabla/registro</li></ul></div>
+                                <div><strong>Cuándo verla</strong><ul><li>Antes de corregir datos</li><li>Después de eliminar movimientos</li><li>En incidentes operativos</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Cuándo consultarla</h4>
+                                <p>Consulta bitácora cuando necesites reconstruir una secuencia: cambios de datos, eliminación de movimientos manuales, registros de checada o actividad reciente de usuarios. Es especialmente útil antes de corregir información sensible.</p>
+                                <ul>
+                                    <li>Busca por fecha aproximada y usuario involucrado.</li>
+                                    <li>Compara el evento con la pantalla donde se originó.</li>
+                                    <li>Conserva bitácora como respaldo operativo, no como sustituto de reportes.</li>
+                                </ul>
+                            </div>
+                            <div class="shot-grid">
+                                <a class="shot" href="assets/screens/bitacora-sitios.png" target="_blank"><img src="assets/screens/bitacora-sitios.png" alt="Bitácora global"><figcaption>Eventos y actividad reciente.</figcaption></a>
+                            </div>
+                        </article>
+
+                        <article id="modulo-chat" class="module-detail">
+                            <h3>Chat <span class="badge">Comunicación</span></h3>
+                            <p>Permite comunicación entre app móvil y administración. Refresca conversaciones automáticamente y marca mensajes con lenguaje ofensivo para moderación básica.</p>
+                            <div class="mini-columns">
+                                <div><strong>Acciones</strong><ul><li>Seleccionar conversación</li><li>Responder mensajes</li><li>Revisar no leídos</li></ul></div>
+                                <div><strong>Políticas</strong><ul><li>Mensajes de hasta 1200 caracteres</li><li>Canal RH</li><li>Moderación básica</li></ul></div>
+                                <div><strong>Errores comunes</strong><ul><li>No seleccionar conversación</li><li>Esperar recarga total</li><li>No revisar moderación</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Uso operativo</h4>
+                                <p>El chat sirve para comunicación rápida con colaboradores. No sustituye incidencias formales: si el mensaje describe un problema operativo, conviene levantar o relacionar una incidencia para que quede en seguimiento.</p>
+                                <ul>
+                                    <li>Selecciona la conversación antes de responder.</li>
+                                    <li>Revisa mensajes marcados por moderación antes de tomar acción.</li>
+                                    <li>Usa mensajes concretos y evita enviar instrucciones ambiguas.</li>
+                                </ul>
+                            </div>
+                            <div class="shot-grid">
+                                <a class="shot" href="assets/screens/chat-admin.png" target="_blank"><img src="assets/screens/chat-admin.png" alt="Chat administrativo"><figcaption>Chat interno con colaboradores.</figcaption></a>
+                            </div>
+                        </article>
+
+                        <article id="modulo-personal" class="module-detail">
+                            <h3>Personal <span class="badge ok">RH</span></h3>
+                            <p>Personal concentra datos generales, laborales, bancarios, emergencia, uniforme, foto base, vacaciones, faltas, descansos, caja, préstamos, descuentos, sanciones, bonos, bajas y ficha técnica.</p>
+                            <div class="mini-columns">
+                                <div><strong>Pasos clave</strong><ul><li>Alta de colaborador</li><li>Completar ficha</li><li>Cargar foto base</li><li>Revisar No. empleado</li></ul></div>
+                                <div><strong>Campos críticos</strong><ul><li>Fecha ingreso</li><li>Estado activo</li><li>Salario</li><li>Datos bancarios</li><li>Contacto emergencia</li></ul></div>
+                                <div><strong>Reglas</strong><ul><li>No. empleado calculado</li><li>Vacaciones por historial</li><li>Caja manual eliminable</li><li>Nómina generada no se borra manualmente</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Orden sugerido de captura</h4>
+                                <p>Captura primero identidad, fecha de ingreso y estado laboral; después completa datos de contacto, banco, emergencia, uniforme y foto base. La fecha de ingreso alimenta antigüedad, No. empleado y vacaciones.</p>
+                                <ul>
+                                    <li>Usa la ficha para revisar historial completo del colaborador.</li>
+                                    <li>Registra vacaciones como movimientos, no como notas planas.</li>
+                                    <li>Revisa datos bancarios y salario antes de calcular nómina.</li>
+                                </ul>
+                            </div>
+                            <div class="shot-grid">
+                                <a class="shot" href="assets/screens/personas-lista.png" target="_blank"><img src="assets/screens/personas-lista.png" alt="Lista de personal"><figcaption>Base de personal con búsqueda y No. empleado.</figcaption></a>
+                                <a class="shot" href="assets/screens/personas-ficha.png" target="_blank"><img src="assets/screens/personas-ficha.png" alt="Ficha de personal"><figcaption>Ficha integral del colaborador.</figcaption></a>
+                            </div>
+                        </article>
+
+                        <article id="modulo-sitios" class="module-detail">
+                            <h3>Sitios y geocercas <span class="badge">Ubicación</span></h3>
+                            <p>Administra clientes, sitios, dirección, latitud, longitud y radio de geocerca. Es indispensable para que la app valide dónde se registra cada checada.</p>
+                            <div class="mini-columns">
+                                <div><strong>Acciones</strong><ul><li>Crear sitio</li><li>Editar coordenadas</li><li>Ajustar radio</li><li>Desactivar sitio</li></ul></div>
+                                <div><strong>Campos</strong><ul><li>Cliente</li><li>Nombre</li><li>Dirección</li><li>Lat/Lng</li><li>Radio</li></ul></div>
+                                <div><strong>Validación</strong><ul><li>Latitud -90 a 90</li><li>Longitud -180 a 180</li><li>Radio mayor a 0</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Validación de geocerca</h4>
+                                <p>Un sitio mal ubicado provoca rechazos o pendientes de checada. Antes de operar, valida que el punto del mapa coincida con el acceso real y que el radio cubra el área permitida sin volverse demasiado amplio.</p>
+                                <ul>
+                                    <li>Usa coordenadas precisas, no solo dirección textual.</li>
+                                    <li>Ajusta el radio si hay entradas válidas fuera por pocos metros.</li>
+                                    <li>Desactiva sitios que ya no deben recibir turnos.</li>
+                                </ul>
+                            </div>
+                            <div class="shot-grid">
+                                <a class="shot" href="assets/screens/sitios-geocerca.png" target="_blank"><img src="assets/screens/sitios-geocerca.png" alt="Editor de geocercas"><figcaption>Mapa y formulario de geocerca.</figcaption></a>
+                            </div>
+                        </article>
+
+                        <article id="modulo-nomina" class="module-detail">
+                            <h3>Nómina <span class="badge warn">Cálculo</span></h3>
+                            <p>Nómina consolida salario, retardos, horas extra, turnos extra, vacaciones, prima vacacional, bonos, faltas, descansos, sanciones, material, Infonavit, Fonacot, préstamos, adelantos, caja y neto.</p>
+                            <div class="mini-columns">
+                                <div><strong>Antes de calcular</strong><ul><li>Revisar checadas</li><li>Validar faltas/descansos</li><li>Confirmar vacaciones</li><li>Capturar ajustes</li></ul></div>
+                                <div><strong>Salidas</strong><ul><li>Resumen</li><li>Conceptos</li><li>Recibo interno</li><li>CSV</li></ul></div>
+                                <div><strong>Errores comunes</strong><ul><li>Periodo incorrecto</li><li>Datos de salario incompletos</li><li>Incidencias sin registrar</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Secuencia segura</h4>
+                                <p>Antes de calcular, asegúrate de que las fuentes operativas ya estén revisadas. Nómina no inventa datos: consolida lo que exista en turnos, checadas, vacaciones, faltas, descansos, caja, préstamos y capturas manuales.</p>
+                                <ul>
+                                    <li>Valida el periodo antes de ejecutar cálculo.</li>
+                                    <li>Revisa conceptos separados de faltas y descansos.</li>
+                                    <li>Abre el recibo interno para confirmar que el desglose sea explicable.</li>
+                                </ul>
+                            </div>
+                            <div class="shot-grid">
+                                <a class="shot" href="assets/screens/nomina-calculo.png" target="_blank"><img src="assets/screens/nomina-calculo.png" alt="Cálculo de nómina"><figcaption>Cálculo y capturas del periodo.</figcaption></a>
+                                <a class="shot" href="assets/screens/nomina-exportacion.png" target="_blank"><img src="assets/screens/nomina-exportacion.png" alt="Exportación de nómina"><figcaption>Vista previa y descarga de nómina.</figcaption></a>
+                            </div>
+                        </article>
+
+                        <article id="modulo-reportes" class="module-detail">
+                            <h3>Reportes <span class="badge ok">KPIs</span></h3>
+                            <p>Reportes permite analizar puntualidad, absentismo, incidencias por sitio y costo de extras para tomar decisiones por periodo, sitio o colaborador.</p>
+                            <div class="mini-columns">
+                                <div><strong>Reportes</strong><ul><li>Puntualidad</li><li>Incidencias</li><li>Extras</li></ul></div>
+                                <div><strong>Filtros</strong><ul><li>Fechas</li><li>Sitio</li><li>Colaborador</li><li>No. empleado</li></ul></div>
+                                <div><strong>Uso</strong><ul><li>Revisión gerencial</li><li>Auditoría</li><li>Soporte a nómina</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Cómo usarlos</h4>
+                                <p>Los reportes son una vista de análisis, no una pantalla de captura. Sirven para detectar tendencias, validar cumplimiento y sustentar conversaciones con supervisión, RH, nómina o cliente.</p>
+                                <ul>
+                                    <li>Filtra por fechas comparables para evitar conclusiones falsas.</li>
+                                    <li>Usa No. empleado cuando existan nombres similares.</li>
+                                    <li>Exporta o imprime solo después de revisar filtros.</li>
+                                </ul>
+                            </div>
+                            <div class="shot-grid">
+                                <a class="shot" href="assets/screens/reportes-puntualidad.png" target="_blank"><img src="assets/screens/reportes-puntualidad.png" alt="Reporte de puntualidad"><figcaption>Puntualidad y absentismo.</figcaption></a>
+                                <a class="shot" href="assets/screens/reportes-incidencias.png" target="_blank"><img src="assets/screens/reportes-incidencias.png" alt="Reporte de incidencias"><figcaption>Incidencias por sitio.</figcaption></a>
+                            </div>
+                        </article>
+
+                        <article id="modulo-usuarios-roles" class="module-detail">
+                            <h3>Usuarios y roles <span class="badge">Acceso</span></h3>
+                            <p>Administra cuentas, roles, reseteo de contraseñas y matriz de permisos por sección/página. Controla tanto el menú como el acceso directo por URL.</p>
+                            <div class="mini-columns">
+                                <div><strong>Acciones</strong><ul><li>Crear usuarios</li><li>Activar/desactivar</li><li>Resetear contraseña</li><li>Asignar permisos</li></ul></div>
+                                <div><strong>Reglas</strong><ul><li>DUEÑO acceso total</li><li>Permisos JSON por rol</li><li>Menú filtrado</li></ul></div>
+                                <div><strong>Cuidado</strong><ul><li>No bloquear roles críticos</li><li>Probar permisos</li><li>No compartir contraseñas</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Administración responsable</h4>
+                                <p>Los permisos afectan tanto lo que aparece en menú como el acceso directo por URL. Cambia permisos con cuidado y prueba con un usuario del rol antes de dar por cerrada la configuración.</p>
+                                <ul>
+                                    <li>No compartas cuentas entre personas.</li>
+                                    <li>Usa DUEÑO solo para administración crítica.</li>
+                                    <li>No retires permisos críticos sin tener una cuenta alternativa de soporte.</li>
+                                </ul>
+                            </div>
+                            <div class="shot-grid">
+                                <a class="shot" href="assets/screens/usuarios-lista.png" target="_blank"><img src="assets/screens/usuarios-lista.png" alt="Usuarios"><figcaption>Usuarios del sistema.</figcaption></a>
+                                <a class="shot" href="assets/screens/roles-permisos.png" target="_blank"><img src="assets/screens/roles-permisos.png" alt="Roles y permisos"><figcaption>Matriz de permisos por rol.</figcaption></a>
+                            </div>
+                        </article>
+
+                        <article id="modulo-configuracion" class="module-detail">
+                            <h3>Configuración <span class="badge warn">Parámetros</span></h3>
+                            <p>Configuración concentra valores que cambian la operación sin editar código: tolerancia de retardos, anticipación de checadas, score facial, vacaciones, faltas, descansos, turnos extra, préstamos y caja.</p>
+                            <div class="mini-columns">
+                                <div><strong>Quién la usa</strong><ul><li>Administrador</li><li>RH</li><li>Nómina</li><li>DUEÑO</li></ul></div>
+                                <div><strong>Ejemplos</strong><ul><li>20 min anticipación</li><li>35 score facial</li><li>Tabla vacaciones</li><li>Montos faltas</li></ul></div>
+                                <div><strong>Cuidado</strong><ul><li>Cambiar valores afecta cálculos futuros</li><li>Documentar cambios</li><li>Probar nómina antes de cerrar</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Antes de cambiar valores</h4>
+                                <p>La configuración modifica reglas de operación. Cambiar tolerancias, vacaciones, facial o descuentos puede afectar checadas y cálculos futuros, por eso conviene documentar el cambio y probar un caso antes de operar masivamente.</p>
+                                <ul>
+                                    <li>Anota qué valor cambió, por qué y desde cuándo aplica.</li>
+                                    <li>Prueba checada o nómina en un caso controlado.</li>
+                                    <li>Evita dejar campos vacíos si el negocio requiere un valor explícito.</li>
+                                </ul>
+                            </div>
+                            <div class="shot-grid">
+                                <a class="shot" href="assets/screens/configuracion-global.png" target="_blank"><img src="assets/screens/configuracion-global.png" alt="Configuración global"><figcaption>Parámetros globales editables.</figcaption></a>
+                            </div>
+                        </article>
+
+                        <article id="modulo-app-movil" class="module-detail">
+                            <h3>App móvil <span class="badge ok">Campo</span></h3>
+                            <p>La app móvil permite a guardias consultar turno actual, checar entrada/salida con selfie y ubicación, reportar incidencias, ver bitácora y usar chat.</p>
+                            <div class="mini-columns">
+                                <div><strong>Acciones</strong><ul><li>Login</li><li>Checar</li><li>Reportar incidencia</li><li>Enviar chat</li></ul></div>
+                                <div><strong>Datos enviados</strong><ul><li>personal_id</li><li>turno_id</li><li>GPS</li><li>Selfie</li><li>Evento</li></ul></div>
+                                <div><strong>Reglas</strong><ul><li>Entrada desde 20 min antes</li><li>Geocerca obligatoria</li><li>Selfie obligatoria</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Experiencia del colaborador</h4>
+                                <p>La app debe guiar al colaborador a confirmar turno, sitio y horario antes de checar. Si no aparece turno o la ubicación falla, el problema suele venir de asignación, geocerca, permisos del navegador o conectividad.</p>
+                                <ul>
+                                    <li>Permitir ubicación y cámara en el navegador.</li>
+                                    <li>Checar solo dentro de la ventana permitida.</li>
+                                    <li>Reportar incidencias desde app cuando ocurra algo durante el servicio.</li>
+                                </ul>
+                            </div>
+                            <div class="shot-grid">
+                                <a class="shot" href="assets/screens/app-movil.png" target="_blank"><img src="assets/screens/app-movil.png" alt="App móvil"><figcaption>App móvil para guardias y colaboradores.</figcaption></a>
+                            </div>
+                        </article>
+                    </div>
+                </section>
+
+                <section id="app-movil" class="section" data-search-item>
+                    <div class="section-header">
+                        <div>
+                            <span class="eyebrow">Guardias y colaboradores</span>
+                            <h2>Funcionamiento de la app móvil</h2>
+                        </div>
+                    </div>
+                    <div data-tabs>
+                        <div class="tablist">
+                            <button class="tab-button active" data-tab-target="movil-login" type="button">Login</button>
+                            <button class="tab-button" data-tab-target="movil-checada" type="button">Checada</button>
+                            <button class="tab-button" data-tab-target="movil-incidencia" type="button">Incidencia</button>
+                            <button class="tab-button" data-tab-target="movil-chat" type="button">Chat</button>
+                        </div>
+                        <div class="tab-panel active" data-tab-panel="movil-login">
+                            <p>El colaborador entra con usuario y contraseña. La app valida que exista un registro de personal activo asociado a ese usuario.</p>
+                        </div>
+                        <div class="tab-panel" data-tab-panel="movil-checada">
+                            <p>La app consulta el turno actual, muestra hora programada y permite registrar entrada desde 20 minutos antes. La salida se habilita después de entrada. Cada registro incluye GPS, selfie y estado.</p>
+                        </div>
+                        <div class="tab-panel" data-tab-panel="movil-incidencia">
+                            <p>El colaborador selecciona sitio, tipo, prioridad y descripción. El reporte queda disponible en la bandeja de incidencias para seguimiento.</p>
+                        </div>
+                        <div class="tab-panel" data-tab-panel="movil-chat">
+                            <p>Permite enviar mensajes a RH/administración. La app refresca conversaciones automáticamente sin recargar toda la pantalla.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="flujos" class="section" data-search-item>
+                    <div class="section-header">
+                        <div>
+                            <span class="eyebrow">Guías paso a paso</span>
+                            <h2>Flujos frecuentes</h2>
+                        </div>
+                    </div>
+                    <div class="accordion">
+                        <details open>
+                            <summary>Crear un colaborador</summary>
+                            <div>
+                                <ol class="steps">
+                                    <li>Ir a Personal y seleccionar Nuevo colaborador.</li>
+                                    <li>Capturar datos de usuario, rol, nombre, teléfono, fecha de ingreso, estado y datos laborales.</li>
+                                    <li>Completar datos personales, bancarios, uniforme y emergencia.</li>
+                                    <li>Guardar. El No. empleado se calcula automáticamente con año de ingreso + ID.</li>
+                                    <li>Entrar a la ficha para cargar foto base y completar nómina/prestaciones.</li>
+                                </ol>
+                            </div>
+                        </details>
+                        <details>
+                            <summary>Asignar horario semanal o mensual</summary>
+                            <div>
+                                <ol class="steps">
+                                    <li>Ir a Turnos y Asignación.</li>
+                                    <li>Seleccionar colaborador activo y sitio obligatorio.</li>
+                                    <li>Capturar hora inicio, hora fin, días de la semana y rango semana/mes.</li>
+                                    <li>Generar turnos. El sistema evita duplicados por colaborador y hora de inicio.</li>
+                                    <li>Verificar que aparezcan en calendario y app móvil.</li>
+                                </ol>
+                            </div>
+                        </details>
+                        <details>
+                            <summary>Registrar una checada desde app</summary>
+                            <div>
+                                <ol class="steps">
+                                    <li>Entrar a la app móvil.</li>
+                                    <li>Revisar turno actual, sitio, entrada programada y salida programada.</li>
+                                    <li>Esperar a estar dentro de la ventana permitida: 20 minutos antes del inicio.</li>
+                                    <li>Permitir ubicación, tomar selfie y registrar entrada o salida.</li>
+                                    <li>Confirmar en bitácora que aparezca la hora real.</li>
+                                </ol>
+                            </div>
+                        </details>
+                        <details>
+                            <summary>Capturar vacaciones y consultar historial</summary>
+                            <div>
+                                <ol class="steps">
+                                    <li>Entrar a la ficha del colaborador.</li>
+                                    <li>Ubicar el módulo Vacaciones.</li>
+                                    <li>Registrar movimiento: gozadas, pagadas, ajuste a favor, ajuste en contra o nota histórica.</li>
+                                    <li>Revisar resumen: generadas, gozadas, pagadas, ajustes y disponibles.</li>
+                                    <li>Consultar la tabla/timeline para auditoría histórica.</li>
+                                </ol>
+                            </div>
+                        </details>
+                        <details>
+                            <summary>Calcular nómina y emitir recibo</summary>
+                            <div>
+                                <ol class="steps">
+                                    <li>Revisar checadas, retardos, faltas, descansos, bonos, sanciones, préstamos y caja.</li>
+                                    <li>Ir a Nómina y seleccionar el periodo.</li>
+                                    <li>Capturar ajustes manuales cuando aplique.</li>
+                                    <li>Calcular nómina y revisar neto, percepciones y deducciones.</li>
+                                    <li>Abrir Recibo para imprimir/guardar PDF o Exportación para CSV.</li>
+                                </ol>
+                            </div>
+                        </details>
+                        <details>
+                            <summary>Administrar permisos por rol</summary>
+                            <div>
+                                <ol class="steps">
+                                    <li>Entrar a Roles y permisos con un perfil autorizado.</li>
+                                    <li>Seleccionar el rol a configurar.</li>
+                                    <li>Activar secciones y páginas permitidas.</li>
+                                    <li>Guardar cambios. DUEÑO conserva acceso total fijo.</li>
+                                    <li>Probar con un usuario del rol que el menú y acceso por URL respeten la matriz.</li>
+                                </ol>
+                            </div>
+                        </details>
+                    </div>
+                </section>
+
+                <section id="politicas" class="section" data-search-item>
+                    <div class="section-header">
+                        <div>
+                            <span class="eyebrow">Reglas del negocio</span>
+                            <h2>Políticas aplicadas por el sistema</h2>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Política</th><th>Cómo funciona</th><th>Dónde se ve</th></tr></thead>
+                            <tbody>
+                                <tr><td>No. empleado</td><td>Se calcula como últimos 2 dígitos del año de ingreso + ID con 4 dígitos. Ejemplo: 260001.</td><td>Personal, usuarios, nómina, reportes, checadas y ficha.</td></tr>
+                                <tr><td>Ventana de checada</td><td>La entrada se permite desde 20 minutos antes del turno, configurable.</td><td>App móvil y configuración global.</td></tr>
+                                <tr><td>Geocerca</td><td>El sitio define latitud, longitud y radio. La app envía GPS para validar si está dentro.</td><td>Sitios, checadas y detalle.</td></tr>
+                                <tr><td>Reconocimiento facial básico</td><td>Se compara selfie contra foto base. Si falta foto base o no hay score calculable, queda pendiente de revisión.</td><td>App móvil, checadas y ficha.</td></tr>
+                                <tr><td>Vacaciones</td><td>Saldo histórico con tabla escalonada; gozadas y pagadas restan; ajustes pueden sumar o restar; notas no afectan saldo.</td><td>Ficha del colaborador y nómina.</td></tr>
+                                <tr><td>Faltas y descansos</td><td>Faltas siempre descuentan. Descansos pueden ser con goce o sin goce.</td><td>Ficha y cálculo de nómina.</td></tr>
+                                <tr><td>Caja de ahorro</td><td>Movimientos manuales pueden eliminarse con bitácora. Movimientos de nómina no deben borrarse manualmente.</td><td>Ficha del colaborador.</td></tr>
+                                <tr><td>Permisos</td><td>El menú y el acceso directo por URL se controlan por rol y página. DUEÑO siempre tiene acceso total.</td><td>Roles y permisos.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section id="historias" class="section" data-search-item>
+                    <div class="section-header">
+                        <div>
+                            <span class="eyebrow">Casos de uso</span>
+                            <h2>Historias de usuario por perfil</h2>
+                        </div>
+                    </div>
+                    <div class="grid two">
+                        <div class="card"><h3>Como guardia</h3><p>Quiero ver mi turno, checar entrada/salida con ubicación y selfie, reportar incidencias y comunicarme con administración.</p></div>
+                        <div class="card"><h3>Como supervisor</h3><p>Quiero revisar checadas, incidencias y turnos para actuar rápidamente cuando falte personal o exista una alerta.</p></div>
+                        <div class="card"><h3>Como RH</h3><p>Quiero mantener completa la ficha del colaborador, registrar vacaciones, faltas, descansos, préstamos, caja y bajas.</p></div>
+                        <div class="card"><h3>Como nómina</h3><p>Quiero calcular periodos con incidencias separadas, exportar datos y emitir recibos internos claros.</p></div>
+                        <div class="card"><h3>Como administrador</h3><p>Quiero configurar permisos, variables globales y usuarios para controlar el acceso al sistema.</p></div>
+                        <div class="card"><h3>Como cliente</h3><p>Quiero consultar métricas y reportes autorizados sin ver información administrativa sensible.</p></div>
+                    </div>
+                </section>
+
+                <section id="buenas-practicas" class="section" data-search-item>
+                    <div class="section-header">
+                        <div>
+                            <span class="eyebrow">Uso correcto</span>
+                            <h2>Buenas prácticas operativas</h2>
+                        </div>
+                    </div>
+                    <div class="grid two">
+                        <div class="callout">
+                            <strong>Antes de nómina:</strong> revisa checadas pendientes, faltas, descansos, vacaciones, bonos, sanciones, préstamos, caja y turnos extra.
+                        </div>
+                        <div class="callout warn">
+                            <strong>Antes de editar permisos:</strong> confirma que no estés quitando acceso crítico a RH, nómina o administración.
+                        </div>
+                        <div class="callout">
+                            <strong>Antes de generar turnos masivos:</strong> valida sitio, días de semana, hora inicio y hora fin.
+                        </div>
+                        <div class="callout warn">
+                            <strong>Con checadas pendientes:</strong> revisa selfie, GPS, score facial y comentarios antes de aceptar o rechazar operativamente.
+                        </div>
+                    </div>
+                </section>
+
+                <section id="glosario" class="section" data-search-item>
+                    <div class="section-header">
+                        <div>
+                            <span class="eyebrow">Referencia rápida</span>
+                            <h2>Glosario</h2>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Término</th><th>Significado</th></tr></thead>
+                            <tbody>
+                                <tr><td>Turno</td><td>Horario real asignado a una persona en un sitio.</td></tr>
+                                <tr><td>Checada</td><td>Registro de entrada o salida enviado desde la app.</td></tr>
+                                <tr><td>Geocerca</td><td>Área permitida alrededor de un sitio para validar ubicación.</td></tr>
+                                <tr><td>PENDIENTE_REVISION</td><td>Estado usado cuando la checada requiere revisión humana.</td></tr>
+                                <tr><td>Movimiento de vacaciones</td><td>Registro histórico que afecta o documenta saldo vacacional.</td></tr>
+                                <tr><td>Recibo interno</td><td>Documento imprimible de nómina; no es CFDI/SAT.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <div class="no-results" data-no-results>No se encontraron coincidencias en el manual de usuario.</div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">Manual de usuario MSTV Control. Última revisión documental: 2026.</footer>
+    <button class="btn back-top" data-back-top type="button">Arriba</button>
+    <script src="assets/manual.js"></script>
+</body>
+</html>

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Manuales MSTV Control</title>
+    <link rel="stylesheet" href="assets/manual.css">
+</head>
+<body>
+    <div class="shell">
+        <header class="topbar">
+            <a class="brand" href="index.html">
+                <span class="brand-mark">M</span>
+                <span>MSTV Control Wiki</span>
+            </a>
+            <nav class="top-actions" aria-label="Manuales">
+                <a class="btn ghost" href="usuario.html">Manual de usuario</a>
+                <a class="btn primary" href="tecnico.html">Manual técnico</a>
+            </nav>
+        </header>
+
+        <main>
+            <section class="hero">
+                <div>
+                    <span class="eyebrow">Documentación operativa y técnica</span>
+                    <h1>La wiki para aprender, operar y mantener MSTV Control.</h1>
+                    <p class="lead">
+                        Esta carpeta reúne dos manuales navegables: uno pensado para usuarios finales que operan el sistema día a día, y otro para personal técnico que instala, da mantenimiento y programa nuevas funciones.
+                    </p>
+                    <div class="search-box">
+                        <input type="search" data-search-input="#manuales" placeholder="Buscar módulo, política, flujo o tema técnico...">
+                    </div>
+                    <div class="top-actions">
+                        <a class="btn primary" href="usuario.html">Entrar al manual de usuario</a>
+                        <a class="btn" href="tecnico.html">Entrar al manual técnico</a>
+                    </div>
+                </div>
+                <aside class="hero-card">
+                    <h3>Mapa rápido del sistema</h3>
+                    <p class="muted">
+                        MSTV Control combina un panel administrativo en PHP, una app móvil web para checadas y una base MySQL/MariaDB compartida.
+                    </p>
+                    <div class="grid two">
+                        <div class="card">
+                            <div class="metric">2</div>
+                            <strong>Interfaces</strong>
+                            <p class="muted">Control administrativo y app móvil.</p>
+                        </div>
+                        <div class="card">
+                            <div class="metric">12+</div>
+                            <strong>Módulos</strong>
+                            <p class="muted">Operación, RH, nómina y reportes.</p>
+                        </div>
+                    </div>
+                </aside>
+            </section>
+
+            <section id="manuales" class="layout" style="grid-template-columns: 1fr;">
+                <div class="content">
+                    <div class="grid two">
+                        <article class="section highlight" data-search-item>
+                            <div class="section-header">
+                                <div>
+                                    <span class="eyebrow">Para operación</span>
+                                    <h2>Manual de usuario final</h2>
+                                </div>
+                            </div>
+                            <p>
+                                Explica cómo usar el sistema desde una perspectiva diaria: iniciar sesión, revisar dashboards, administrar personal, crear turnos, validar checadas, capturar vacaciones, generar nómina y consultar reportes.
+                            </p>
+                            <div>
+                                <span class="badge ok">RH</span>
+                                <span class="badge ok">Supervisión</span>
+                                <span class="badge ok">Nómina</span>
+                                <span class="badge ok">Guardias</span>
+                            </div>
+                            <p><a class="btn primary" href="usuario.html">Abrir manual de usuario</a></p>
+                        </article>
+
+                        <article class="section highlight" data-search-item>
+                            <div class="section-header">
+                                <div>
+                                    <span class="eyebrow">Para soporte y desarrollo</span>
+                                    <h2>Manual técnico</h2>
+                                </div>
+                            </div>
+                            <p>
+                                Documenta instalación local, estructura de carpetas, variables de entorno, configuraciones de negocio, API móvil, tablas, flujos de datos, seguridad, troubleshooting y guía para extender el sistema.
+                            </p>
+                            <div>
+                                <span class="badge warn">PHP 8.x</span>
+                                <span class="badge warn">MySQL/MariaDB</span>
+                                <span class="badge warn">mysqli + GD</span>
+                            </div>
+                            <p><a class="btn primary" href="tecnico.html">Abrir manual técnico</a></p>
+                        </article>
+                    </div>
+
+                    <div class="section" data-search-item>
+                        <div class="section-header">
+                            <div>
+                                <span class="eyebrow">Qué incluye</span>
+                                <h2>Temas cubiertos</h2>
+                            </div>
+                        </div>
+                        <div class="grid four">
+                            <div class="card"><strong>Turnos y checadas</strong><p class="muted">Horarios, geocerca, selfie, hora programada y hora real.</p></div>
+                            <div class="card"><strong>Personal y RH</strong><p class="muted">Ficha, vacaciones, bajas, incidencias y caja de ahorro.</p></div>
+                            <div class="card"><strong>Nómina</strong><p class="muted">Periodos, capturas, cálculos, recibos y exportación.</p></div>
+                            <div class="card"><strong>Sistema</strong><p class="muted">Permisos, configuración, API, instalación y mantenimiento.</p></div>
+                        </div>
+                    </div>
+
+                    <div class="no-results" data-no-results>No encontramos resultados en esta portada. Prueba abrir uno de los manuales para buscar dentro del contenido completo.</div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            Manuales estáticos de MSTV Control. No contienen credenciales reales ni requieren conexión a la base de datos.
+        </footer>
+    </div>
+
+    <button class="btn back-top" data-back-top type="button">Arriba</button>
+    <script src="assets/manual.js"></script>
+</body>
+</html>

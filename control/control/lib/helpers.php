@@ -294,7 +294,6 @@ if (!function_exists('app_permission_catalog')) {
                 'group' => 'SISTEMA',
                 'pages' => [
                     'configuracion-global.php' => ['label' => 'Parámetros globales', 'menu' => true],
-                    'configuracion-notificaciones.php' => ['label' => 'Notificaciones y alertas', 'menu' => true],
                     'configuracion-catalogos.php' => ['label' => 'Catálogos del sistema', 'menu' => false],
                 ],
             ],
@@ -494,7 +493,6 @@ if (!function_exists('app_legacy_permissions_for_role')) {
                 'usuarios-lista.php',
                 'usuarios-reset-password.php',
                 'configuracion-global.php',
-                'configuracion-notificaciones.php',
             ],
             'NOMINA' => [
                 'turnos-extras.php',
@@ -512,7 +510,6 @@ if (!function_exists('app_legacy_permissions_for_role')) {
                 'reportes-incidencias.php',
                 'reportes-extras.php',
                 'configuracion-global.php',
-                'configuracion-notificaciones.php',
             ],
             'CLIENTE' => [
                 'dashboard-cliente.php',

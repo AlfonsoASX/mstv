@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Manual Técnico | MSTV Control</title>
+    <link rel="stylesheet" href="assets/manual.css">
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="index.html">
+            <span class="brand-mark">M</span>
+            <span>MSTV Control Wiki</span>
+        </a>
+        <nav class="top-actions">
+            <a class="btn ghost" href="usuario.html">Usuario</a>
+            <a class="btn primary" href="tecnico.html">Técnico</a>
+            <button class="btn" onclick="window.print()" type="button">Imprimir / PDF</button>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero compact">
+            <span class="eyebrow">Manual técnico</span>
+            <h1>Instalación, arquitectura y mantenimiento de MSTV Control.</h1>
+            <p class="lead">
+                Guía para programadores y administradores técnicos. Documenta cómo levantar el sistema, cómo fluye la información, qué módulos existen, cómo se configura la operación y cómo extender el proyecto sin romper los flujos actuales.
+            </p>
+            <div class="search-box">
+                <input type="search" data-search-input="#manual-content" placeholder="Buscar instalación, API, tabla, variable, módulo o error...">
+            </div>
+        </section>
+
+        <div class="layout">
+            <aside class="sidebar">
+                <strong>Contenido técnico</strong>
+                <ul class="nav-list">
+                    <li><a href="#instalacion">Instalación local</a></li>
+                    <li><a href="#sql-instalacion">SQL instalable</a></li>
+                    <li><a href="#estructura">Estructura y arquitectura</a></li>
+                    <li><a href="#configuracion">Variables y configuración</a></li>
+                    <li><a href="#modulos">Módulos incluidos</a></li>
+                    <li><a href="#api">API móvil</a></li>
+                    <li><a href="#datos">Base de datos</a></li>
+                    <li><a href="#flujos-datos">Flujos de datos</a></li>
+                    <li><a href="#seguridad">Seguridad y mantenimiento</a></li>
+                    <li><a href="#programadores">Guía para programadores</a></li>
+                    <li><a href="#troubleshooting">Troubleshooting</a></li>
+                </ul>
+            </aside>
+
+            <div id="manual-content" class="content">
+                <section id="instalacion" class="section highlight" data-search-item>
+                    <div class="section-header">
+                        <div>
+                            <span class="eyebrow">Arranque</span>
+                            <h2>Instalación local</h2>
+                        </div>
+                    </div>
+                    <div class="grid two">
+                        <div class="card">
+                            <h3>Requisitos</h3>
+                            <ul>
+                                <li>PHP 8.x o compatible con `mysqli`.</li>
+                                <li>MySQL o MariaDB.</li>
+                                <li>Extensión PHP `mysqli`.</li>
+                                <li>Extensión GD o funciones de imagen para validación facial básica.</li>
+                                <li>Servidor local o hosting que permita PHP procedural.</li>
+                            </ul>
+                        </div>
+                        <div class="card">
+                            <h3>URLs principales</h3>
+                            <p><span class="badge">/control/index.php</span> Panel administrativo</p>
+                            <p><span class="badge">/app/index.html</span> App móvil web</p>
+                            <p><span class="badge">/manual/index.html</span> Manuales estáticos</p>
+                        </div>
+                    </div>
+
+                    <h3>Levantar en puerto 7878</h3>
+                    <div class="code-block">
+                        <button class="copy-code" type="button">Copiar</button>
+                        <pre>cd /Users/alfonsoasx/Documents/GitHub/mstv/control
+php -S localhost:7878 -t .</pre>
+                    </div>
+
+                    <h3>Configuración de base de datos</h3>
+                    <p>
+                        El proyecto actual usa archivos `db.php` en `control/lib/` y `app/`. Para documentar o instalar en otro ambiente, usa placeholders y evita publicar secretos reales.
+                    </p>
+                    <div class="code-block">
+                        <button class="copy-code" type="button">Copiar</button>
+                        <pre>&lt;?php
+$db_host = "TU_HOST_MYSQL";
+$db_user = "TU_USUARIO_MYSQL";
+$db_pass = "TU_PASSWORD_MYSQL";
+$db_name = "TU_BASE_DE_DATOS";
+
+$conexion = mysqli_connect($db_host, $db_user, $db_pass, $db_name);
+if (!$conexion) {
+    die("Error de conexión a la base de datos: " . mysqli_connect_error());
+}
+mysqli_set_charset($conexion, "utf8mb4");</pre>
+                    </div>
+                    <div class="callout danger">
+                        <strong>No publicar credenciales:</strong> si existen credenciales reales en código fuente, deben migrarse a variables de entorno o archivos privados fuera del repositorio antes de publicar.
+                    </div>
+                </section>
+
+                <section id="sql-instalacion" class="section" data-search-item>
+                    <div class="section-header">
+                        <div>
+                            <span class="eyebrow">Instalación en servidor</span>
+                            <h2>Estructura SQL lista para importar</h2>
+                        </div>
+                    </div>
+                    <p>
+                        La wiki incluye un archivo SQL limpio con la estructura completa actual del sistema, semillas mínimas de roles y claves de configuración operativa. No incluye contraseñas reales, colaboradores, clientes ni registros de producción.
+                    </p>
+                    <div class="grid two">
+                        <div class="card">
+                            <h3>Archivo incluido</h3>
+                            <p>
+                                <a class="btn primary" href="assets/mstv-control-schema.sql" download>Descargar SQL</a>
+                                <a class="btn ghost" href="assets/mstv-control-schema.sql" target="_blank">Abrir en navegador</a>
+                            </p>
+                            <p class="muted">Ruta dentro del proyecto: <code>manual/assets/mstv-control-schema.sql</code></p>
+                        </div>
+                        <div class="card">
+                            <h3>Qué crea</h3>
+                            <p>Tablas de seguridad, personal, operación, comunicación, nómina, vacaciones, préstamos, caja de ahorro, reportes operativos y configuración global.</p>
+                            <p class="muted">También inserta roles base y valores default en <code>configuracion_sistema</code>.</p>
+                        </div>
+                    </div>
+
+                    <h3>Comando de importación</h3>
+                    <div class="code-block">
+                        <button class="copy-code" type="button">Copiar</button>
+                        <pre>cd /Users/alfonsoasx/Documents/GitHub/mstv/control
+mysql -u TU_USUARIO -p TU_BASE_DE_DATOS &lt; manual/assets/mstv-control-schema.sql</pre>
+                    </div>
+
+                    <div class="callout warn">
+                        <strong>Primer usuario:</strong> el SQL no crea una cuenta con contraseña fija. Después de importar, crea el usuario inicial con un hash generado por <code>password_hash()</code> o mediante una herramienta administrativa segura.
+                    </div>
+
+                    <details class="schema-sql">
+                        <summary>Ver SQL completo dentro del manual</summary>
+                        <div class="code-block">
+                            <button class="copy-code" type="button">Copiar</button>
+                            <pre data-load-text="assets/mstv-control-schema.sql">Cargando estructura SQL...</pre>
+                        </div>
+                    </details>
+                </section>
+
+                <section id="estructura" class="section" data-search-item>
+                    <div class="section-header">
+                        <div>
+                            <span class="eyebrow">Arquitectura</span>
+                            <h2>Estructura general del proyecto</h2>
+                        </div>
+                    </div>
+                    <p>
+                        MSTV Control no usa un framework MVC moderno; es una aplicación PHP procedural con dos frontends, librerías compartidas y assets de la plantilla Cork.
+                    </p>
+                    <div class="code-block">
+                        <button class="copy-code" type="button">Copiar</button>
+                        <pre>/
+├── app/                  # App móvil web y API JSON
+├── control/              # Panel administrativo PHP
+│   ├── lib/              # Bootstrap, helpers, payroll, schema y operaciones
+│   ├── partes/           # Nav, menú y footer
+│   └── uploads/          # Fotos base y adjuntos
+├── manual/               # Wiki estática de usuario y técnica
+├── src/                  # Bootstrap, plugins y assets usados por Cork
+├── layouts/              # Layouts compilados de Cork
+├── scss/                 # Fuentes SCSS del tema
+└── cork-v4.0.0/          # Plantilla original y documentación</pre>
+                    </div>
+                    <div class="grid three">
+                        <div class="card"><h3>Presentación</h3><p>`control/*.php` y `app/index.html` renderizan pantallas.</p></div>
+                        <div class="card"><h3>Dominio</h3><p>`control/lib/payroll.php` concentra nómina, vacaciones, caja, préstamos y cálculos.</p></div>
+                        <div class="card"><h3>Datos</h3><p>MySQL/MariaDB vía `mysqli`, con migraciones ligeras en runtime.</p></div>
+                    </div>
+                </section>
+
+                <section id="configuracion" class="section" data-search-item>
+                    <div class="section-header">
+                        <div>
+                            <span class="eyebrow">Ambiente</span>
+                            <h2>Variables y configuración</h2>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Variable / clave</th><th>Default</th><th>Uso</th></tr></thead>
+                            <tbody>
+                                <tr><td>APP_MAX_EXECUTION_TIME</td><td>120</td><td>Tiempo máximo de ejecución PHP aplicado por `control/lib/app.php` y `app/api.php`.</td></tr>
+                                <tr><td>APP_SCHEMA_BOOTSTRAP</td><td>once</td><td>Controla autoajuste de esquema: `once`, `always` o `never`.</td></tr>
+                                <tr><td>turnos_tolerancia_minutos</td><td>15</td><td>Tolerancia antes de generar retardo.</td></tr>
+                                <tr><td>checadas_minutos_anticipacion</td><td>20</td><td>Minutos antes del turno en los que se permite entrada.</td></tr>
+                                <tr><td>facial_puntaje_minimo</td><td>35</td><td>Score mínimo para aceptar automáticamente checada facial.</td></tr>
+                                <tr><td>facial_selfie_min_width / height</td><td>180</td><td>Tamaño mínimo de selfie para validación de evidencia.</td></tr>
+                                <tr><td>vacaciones_dias_anio_1..5</td><td>12..20</td><td>Días ganados por años 1 a 5.</td></tr>
+                                <tr><td>vacaciones_dias_anios_6_10..26_30</td><td>22..30</td><td>Días ganados por rangos de antigüedad.</td></tr>
+                                <tr><td>faltas_descuento_*</td><td>400/700/0</td><td>Montos para faltas justificadas, injustificadas o ajustadas.</td></tr>
+                                <tr><td>descansos_descuento_sin_goce</td><td>Base falta injustificada</td><td>Descuento para descanso sin goce.</td></tr>
+                                <tr><td>turnos_extra_12h_monto / 24h_monto</td><td>400/800</td><td>Importes de turnos extra.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="callout">
+                        Las claves de negocio viven en `configuracion_sistema` y se insertan/actualizan desde `control/lib/runtime_schema.php` si faltan.
+                    </div>
+                </section>
+
+                <section id="modulos" class="section" data-search-item>
+                    <div class="section-header">
+                        <div>
+                            <span class="eyebrow">Inventario funcional</span>
+                            <h2>Módulos incluidos</h2>
+                        </div>
+                    </div>
+                    <div class="grid three module-index">
+                        <a class="card module-card" href="#modulo-dashboard"><span class="module-card-kicker">Ver técnico</span><h3>Dashboard</h3><p>`dashboard.php`, `dashboard-sitio.php`, `dashboard-cliente.php`.</p></a>
+                        <a class="card module-card" href="#modulo-turnos"><span class="module-card-kicker">Ver técnico</span><h3>Turnos</h3><p>`turnos-calendario.php`, `turnos-asignacion.php`, `turnos-extras.php`, `turnos-politicas.php`.</p></a>
+                        <a class="card module-card" href="#modulo-checadas"><span class="module-card-kicker">Ver técnico</span><h3>Checadas</h3><p>`checadas-lista.php`, `checadas-detalle.php`, app `checar`.</p></a>
+                        <a class="card module-card" href="#modulo-incidencias"><span class="module-card-kicker">Ver técnico</span><h3>Incidencias</h3><p>`incidencias-bandeja.php`, `reportes-incidencias.php`, app `reportar_incidencia`.</p></a>
+                        <a class="card module-card" href="#modulo-bitacora"><span class="module-card-kicker">Ver técnico</span><h3>Bitácora</h3><p>`bitacora-sitios.php`, `lib/operations.php` y eventos del sistema.</p></a>
+                        <a class="card module-card" href="#modulo-comunicacion"><span class="module-card-kicker">Ver técnico</span><h3>Comunicación</h3><p>`chat-admin.php`, `chat-moderacion.php`, app chat.</p></a>
+                        <a class="card module-card" href="#modulo-personal"><span class="module-card-kicker">Ver técnico</span><h3>Personal</h3><p>`personas-lista.php`, `personas-ficha.php`, `personas-ficha-tecnica.php`.</p></a>
+                        <a class="card module-card" href="#modulo-sitios"><span class="module-card-kicker">Ver técnico</span><h3>Sitios</h3><p>`sitios-editor-geocerca.php` con lat/lng y radio.</p></a>
+                        <a class="card module-card" href="#modulo-nomina"><span class="module-card-kicker">Ver técnico</span><h3>Nómina</h3><p>`nomina-calculo.php`, `nomina-exportacion.php`, `nomina-recibo.php`.</p></a>
+                        <a class="card module-card" href="#modulo-reportes"><span class="module-card-kicker">Ver técnico</span><h3>Reportes</h3><p>`reportes-puntualidad.php`, `reportes-incidencias.php`, `reportes-extras.php`.</p></a>
+                        <a class="card module-card" href="#modulo-sistema"><span class="module-card-kicker">Ver técnico</span><h3>Sistema</h3><p>`usuarios-lista.php`, `usuarios-reset-password.php`, `roles-permisos.php`, configuración.</p></a>
+                        <a class="card module-card" href="#modulo-configuracion"><span class="module-card-kicker">Ver técnico</span><h3>Configuración</h3><p>`configuracion-global.php`, `runtime_schema.php` y `configuracion_sistema`.</p></a>
+                        <a class="card module-card" href="#modulo-app-movil"><span class="module-card-kicker">Ver técnico</span><h3>App móvil</h3><p>`app/index.html`, `app/api.php`, endpoints JSON y evidencias.</p></a>
+                    </div>
+                    <nav class="module-subnav" aria-label="Navegación rápida de módulos técnicos">
+                        <a href="#modulo-dashboard">Dashboard</a>
+                        <a href="#modulo-turnos">Turnos</a>
+                        <a href="#modulo-checadas">Checadas</a>
+                        <a href="#modulo-incidencias">Incidencias</a>
+                        <a href="#modulo-bitacora">Bitácora</a>
+                        <a href="#modulo-comunicacion">Comunicación</a>
+                        <a href="#modulo-personal">Personal</a>
+                        <a href="#modulo-sitios">Sitios</a>
+                        <a href="#modulo-nomina">Nómina</a>
+                        <a href="#modulo-reportes">Reportes</a>
+                        <a href="#modulo-sistema">Sistema</a>
+                        <a href="#modulo-configuracion">Configuración</a>
+                        <a href="#modulo-app-movil">App móvil</a>
+                    </nav>
+
+                    <div class="module-deep">
+                        <article id="modulo-dashboard" class="module-detail">
+                            <h3>Dashboard</h3>
+                            <p>Construye KPIs operativos consultando checadas, incidencias, turnos, sitios, clientes y personal. Existen variantes para vista general, sitio y cliente.</p>
+                            <div class="mini-columns">
+                                <div><strong>Archivos</strong><ul><li>`dashboard.php`</li><li>`dashboard-sitio.php`</li><li>`dashboard-cliente.php`</li></ul></div>
+                                <div><strong>Tablas</strong><ul><li>`registros_asistencia`</li><li>`incidencias`</li><li>`turnos`</li><li>`sitios`</li><li>`clientes`</li></ul></div>
+                                <div><strong>Riesgos</strong><ul><li>Consultas agregadas por fecha</li><li>Datos sensibles por cliente</li><li>Periodo de análisis fijo en pantalla</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Flujo técnico</h4>
+                                <p>La pantalla consulta agregados por periodo y rol visible. Al modificarla, evita mezclar reglas de negocio con presentación: mantén filtros explícitos, alias claros y protección de visibilidad por cliente/sitio cuando aplique.</p>
+                                <ul><li>Verificar permisos antes de mostrar tarjetas sensibles.</li><li>Validar índices por fecha en tablas de alto volumen.</li><li>Probar con datos vacíos para no romper KPIs.</li></ul>
+                            </div>
+                            <div class="shot-grid"><a class="shot" href="assets/screens/dashboard-general.png" target="_blank"><img src="assets/screens/dashboard-general.png" alt="Dashboard técnico"><figcaption>Dashboard general renderizado desde PHP procedural.</figcaption></a></div>
+                        </article>
+
+                        <article id="modulo-turnos" class="module-detail">
+                            <h3>Turnos</h3>
+                            <p>Materializa horarios reales en `turnos`; la app móvil no consume reglas dinámicas, sino filas concretas con sitio, colaborador, inicio y fin.</p>
+                            <div class="mini-columns">
+                                <div><strong>Archivos</strong><ul><li>`turnos-calendario.php`</li><li>`turnos-asignacion.php`</li><li>`turnos-extras.php`</li><li>`turnos-politicas.php`</li></ul></div>
+                                <div><strong>Tablas</strong><ul><li>`turnos`</li><li>`sitios`</li><li>`personal`</li><li>`ajustes_nomina`</li><li>`configuracion_sistema`</li></ul></div>
+                                <div><strong>Configuración</strong><ul><li>`turnos_tolerancia_minutos`</li><li>`turnos_max_retardo_horas`</li><li>`turnos_extra_12h_monto`</li><li>`turnos_extra_24h_monto`</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Flujo técnico</h4>
+                                <p>`turnos-asignacion.php` debe crear filas reales porque `app/api.php` busca turnos materializados. Cualquier cambio al generador debe preservar sitio obligatorio, rango de fechas y prevención de duplicados por persona/hora inicio.</p>
+                                <ul><li>Validar turno nocturno sumando día a hora fin.</li><li>No cambiar contrato móvil si solo cambia la UI de Control.</li><li>Confirmar que calendario y nómina lean las mismas filas.</li></ul>
+                            </div>
+                            <div class="shot-grid">
+                                <a class="shot" href="assets/screens/turnos-calendario.png" target="_blank"><img src="assets/screens/turnos-calendario.png" alt="Calendario técnico"><figcaption>Calendario de turnos.</figcaption></a>
+                                <a class="shot" href="assets/screens/turnos-asignacion.png" target="_blank"><img src="assets/screens/turnos-asignacion.png" alt="Asignación técnica"><figcaption>Generador de turnos reales.</figcaption></a>
+                            </div>
+                        </article>
+
+                        <article id="modulo-checadas" class="module-detail">
+                            <h3>Checadas</h3>
+                            <p>Recibe registros desde `app/api.php?action=checar`, guarda evidencia, actualiza `turnos.hora_entrada_real/hora_salida_real` y permite auditoría desde Control.</p>
+                            <div class="mini-columns">
+                                <div><strong>Archivos</strong><ul><li>`app/api.php`</li><li>`checadas-lista.php`</li><li>`checadas-detalle.php`</li></ul></div>
+                                <div><strong>Tablas</strong><ul><li>`registros_asistencia`</li><li>`turnos`</li><li>`sitios`</li><li>`personal`</li><li>`bitacora_sistema`</li></ul></div>
+                                <div><strong>Estados</strong><ul><li>`ACEPTADO`</li><li>`RECHAZADO_GPS`</li><li>`RECHAZADO_ROSTRO`</li><li>`PENDIENTE_REVISION`</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Flujo técnico</h4>
+                                <p>La acción `checar` valida sesión móvil, turno vigente, ventana de anticipación, geocerca y evidencia. Si no puede calcular reconocimiento facial, debe conservar evidencia y marcar revisión humana en lugar de fallar silenciosamente.</p>
+                                <ul><li>Guardar siempre hora real y evento recibido.</li><li>Actualizar `turnos.hora_entrada_real` o `hora_salida_real` cuando corresponda.</li><li>Registrar bitácora ante aceptación, rechazo o pendiente.</li></ul>
+                            </div>
+                            <div class="shot-grid">
+                                <a class="shot" href="assets/screens/checadas-lista.png" target="_blank"><img src="assets/screens/checadas-lista.png" alt="Checadas lista técnico"><figcaption>Listado con horarios y evidencia.</figcaption></a>
+                                <a class="shot" href="assets/screens/checadas-detalle.png" target="_blank"><img src="assets/screens/checadas-detalle.png" alt="Checadas detalle técnico"><figcaption>Detalle de evidencia.</figcaption></a>
+                            </div>
+                        </article>
+
+                        <article id="modulo-incidencias" class="module-detail">
+                            <h3>Incidencias</h3>
+                            <p>Las incidencias nacen desde app móvil o Control y se consultan por prioridad, sitio, estado y reportador. Son fuente para dashboards y reportes.</p>
+                            <div class="mini-columns">
+                                <div><strong>Archivos</strong><ul><li>`incidencias-bandeja.php`</li><li>`reportes-incidencias.php`</li><li>`app/api.php` action `reportar_incidencia`</li></ul></div>
+                                <div><strong>Tablas</strong><ul><li>`incidencias`</li><li>`sitios`</li><li>`personal`</li><li>`bitacora_sistema`</li></ul></div>
+                                <div><strong>Mantenimiento</strong><ul><li>Indexar por fecha/sitio si crece</li><li>Normalizar tipos si el catálogo crece</li><li>Auditar cierres</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Flujo técnico</h4>
+                                <p>Las incidencias son registros operativos con ciclo de vida. Mantén los estados como vocabulario consistente y registra cambios importantes en bitácora para que reportes y dashboard no dependan de texto libre difícil de agregar.</p>
+                                <ul><li>Validar sitio y reportador al crear desde app.</li><li>Normalizar prioridades antes de filtrar.</li><li>Probar reportes al agregar nuevos tipos.</li></ul>
+                            </div>
+                            <div class="shot-grid"><a class="shot" href="assets/screens/incidencias-bandeja.png" target="_blank"><img src="assets/screens/incidencias-bandeja.png" alt="Incidencias técnico"><figcaption>Bandeja de seguimiento.</figcaption></a></div>
+                        </article>
+
+                        <article id="modulo-bitacora" class="module-detail">
+                            <h3>Bitácora</h3>
+                            <p>`operations.php` centraliza `app_log_system()`. La vista global cruza movimientos de sistema con checadas e incidencias recientes para diagnóstico.</p>
+                            <div class="mini-columns">
+                                <div><strong>Archivos</strong><ul><li>`bitacora-sitios.php`</li><li>`lib/operations.php`</li></ul></div>
+                                <div><strong>Tablas</strong><ul><li>`bitacora_sistema`</li><li>`registros_asistencia`</li><li>`incidencias`</li><li>`usuarios`</li></ul></div>
+                                <div><strong>Riesgos</strong><ul><li>Payload JSON puede crecer</li><li>Falta paginación profunda</li><li>Útil para auditoría de borrados</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Flujo técnico</h4>
+                                <p>La bitácora debe recibir eventos desde operaciones críticas, no desde cada render. Al agregar una acción destructiva o sensible, registra usuario, tabla, registro afectado y payload mínimo suficiente para auditoría.</p>
+                                <ul><li>No guardar secretos en payload.</li><li>Evitar payloads enormes o binarios.</li><li>Conservar compatibilidad con vistas agregadas.</li></ul>
+                            </div>
+                            <div class="shot-grid"><a class="shot" href="assets/screens/bitacora-sitios.png" target="_blank"><img src="assets/screens/bitacora-sitios.png" alt="Bitácora técnico"><figcaption>Bitácora global de operación.</figcaption></a></div>
+                        </article>
+
+                        <article id="modulo-comunicacion" class="module-detail">
+                            <h3>Comunicación interna</h3>
+                            <p>Chat usa `mensajes_chat`, relaciona remitente/destinatario con `usuarios` y `personal`, y aplica moderación básica con `app_detect_profanity()`.</p>
+                            <div class="mini-columns">
+                                <div><strong>Archivos</strong><ul><li>`chat-admin.php`</li><li>`chat-moderacion.php`</li><li>`app/api.php` chat</li><li>`lib/operations.php`</li></ul></div>
+                                <div><strong>Tablas</strong><ul><li>`mensajes_chat`</li><li>`usuarios`</li><li>`personal`</li></ul></div>
+                                <div><strong>API</strong><ul><li>`chat_listar`</li><li>`chat_enviar`</li><li>Polling frontend</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Flujo técnico</h4>
+                                <p>El chat usa polling ligero. Al ajustar frecuencia o payload, conserva conversación seleccionada y limpia intervalos al cerrar sesión para evitar solicitudes duplicadas.</p>
+                                <ul><li>Aplicar escape HTML al renderizar mensajes.</li><li>Registrar moderación sin bloquear comunicación operativa.</li><li>Evitar recargar toda la página en cada actualización.</li></ul>
+                            </div>
+                            <div class="shot-grid"><a class="shot" href="assets/screens/chat-admin.png" target="_blank"><img src="assets/screens/chat-admin.png" alt="Chat técnico"><figcaption>Chat administrativo.</figcaption></a></div>
+                        </article>
+
+                        <article id="modulo-personal" class="module-detail">
+                            <h3>Personal y RH</h3>
+                            <p>Es el módulo más transversal: crea usuario + personal, mantiene datos laborales, foto base, vacaciones, caja, préstamos, incidencias económicas y bajas.</p>
+                            <div class="mini-columns">
+                                <div><strong>Archivos</strong><ul><li>`personas-lista.php`</li><li>`personas-ficha.php`</li><li>`personas-ficha-tecnica.php`</li><li>`lib/payroll.php`</li></ul></div>
+                                <div><strong>Tablas</strong><ul><li>`personal`</li><li>`usuarios`</li><li>`vacaciones_movimientos`</li><li>`faltas_personal`</li><li>`caja_ahorro_movimientos`</li><li>`prestamos_personal`</li></ul></div>
+                                <div><strong>Helpers</strong><ul><li>`app_employee_number()`</li><li>`app_vacation_summary()`</li><li>`app_get_savings_balance()`</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Flujo técnico</h4>
+                                <p>Personal cruza casi todos los módulos. Antes de cambiar columnas o formularios, revisa alta, edición, ficha, nómina, reportes, usuarios asociados y API móvil. El No. empleado es calculado, no persistido como fuente principal.</p>
+                                <ul><li>Centralizar formato en `app_employee_number()`.</li><li>Usar `vacaciones_movimientos` como historial operativo.</li><li>No borrar movimientos generados por nómina desde UI manual.</li></ul>
+                            </div>
+                            <div class="shot-grid">
+                                <a class="shot" href="assets/screens/personas-lista.png" target="_blank"><img src="assets/screens/personas-lista.png" alt="Personal técnico"><figcaption>Listado de personal.</figcaption></a>
+                                <a class="shot" href="assets/screens/personas-ficha.png" target="_blank"><img src="assets/screens/personas-ficha.png" alt="Ficha técnica personal"><figcaption>Ficha de colaborador con módulos RH.</figcaption></a>
+                            </div>
+                        </article>
+
+                        <article id="modulo-sitios" class="module-detail">
+                            <h3>Sitios y geocercas</h3>
+                            <p>Define el catálogo espacial usado por turnos y checadas. La geocerca se calcula con latitud, longitud y radio en metros.</p>
+                            <div class="mini-columns">
+                                <div><strong>Archivos</strong><ul><li>`sitios-editor-geocerca.php`</li><li>`app/api.php` validación de checada</li></ul></div>
+                                <div><strong>Tablas</strong><ul><li>`sitios`</li><li>`clientes`</li><li>`turnos`</li><li>`registros_asistencia`</li></ul></div>
+                                <div><strong>Dependencias</strong><ul><li>Leaflet</li><li>Bootstrap</li><li>Coordenadas válidas</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Flujo técnico</h4>
+                                <p>La validación de geocerca depende de coordenadas y radio. Cualquier cambio debe probarse con distancias reales cerca del borde para evitar falsos rechazos o áreas demasiado permisivas.</p>
+                                <ul><li>Validar rangos de latitud y longitud.</li><li>Usar metros como unidad del radio.</li><li>Confirmar que turnos no apunten a sitios inactivos.</li></ul>
+                            </div>
+                            <div class="shot-grid"><a class="shot" href="assets/screens/sitios-geocerca.png" target="_blank"><img src="assets/screens/sitios-geocerca.png" alt="Geocercas técnico"><figcaption>Editor de geocercas.</figcaption></a></div>
+                        </article>
+
+                        <article id="modulo-nomina" class="module-detail">
+                            <h3>Nómina</h3>
+                            <p>`payroll.php` funciona como capa de dominio. Limpia cálculo previo del periodo, consulta personal activo, turnos, checadas, vacaciones, caja, préstamos, faltas y capturas, y persiste resumen/conceptos.</p>
+                            <div class="mini-columns">
+                                <div><strong>Archivos</strong><ul><li>`nomina-calculo.php`</li><li>`nomina-exportacion.php`</li><li>`nomina-recibo.php`</li><li>`lib/payroll.php`</li></ul></div>
+                                <div><strong>Tablas</strong><ul><li>`nomina_periodos`</li><li>`nomina_resumen`</li><li>`nomina_conceptos`</li><li>`nomina_capturas`</li><li>`adelantos_nomina`</li></ul></div>
+                                <div><strong>Riesgos</strong><ul><li>Recalcular modifica resumen</li><li>Movimientos de nómina no deben borrarse manualmente</li><li>Validar periodos antes de cerrar</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Flujo técnico</h4>
+                                <p>`payroll.php` debe seguir siendo la fuente de cálculo. Las pantallas deben enviar capturas y mostrar resultados, pero no duplicar fórmulas. Al recalcular, se limpian resultados del periodo y se regeneran resumen/conceptos.</p>
+                                <ul><li>Separar percepciones y deducciones por concepto auditable.</li><li>Probar vacaciones, descansos, faltas y caja en el mismo periodo.</li><li>Evitar borrar movimientos origen que ya participaron en nómina.</li></ul>
+                            </div>
+                            <div class="shot-grid">
+                                <a class="shot" href="assets/screens/nomina-calculo.png" target="_blank"><img src="assets/screens/nomina-calculo.png" alt="Cálculo nómina técnico"><figcaption>Pantalla de cálculo del periodo.</figcaption></a>
+                                <a class="shot" href="assets/screens/nomina-exportacion.png" target="_blank"><img src="assets/screens/nomina-exportacion.png" alt="Nómina técnico"><figcaption>Exportación y vista previa de nómina.</figcaption></a>
+                            </div>
+                        </article>
+
+                        <article id="modulo-reportes" class="module-detail">
+                            <h3>Reportes</h3>
+                            <p>Reportes son consultas agregadas de operación y nómina. Usan filtros por fecha/sitio y apoyan auditoría o toma de decisiones.</p>
+                            <div class="mini-columns">
+                                <div><strong>Archivos</strong><ul><li>`reportes-puntualidad.php`</li><li>`reportes-incidencias.php`</li><li>`reportes-extras.php`</li></ul></div>
+                                <div><strong>Tablas</strong><ul><li>`turnos`</li><li>`registros_asistencia`</li><li>`incidencias`</li><li>`personal`</li><li>`sitios`</li></ul></div>
+                                <div><strong>Mantenimiento</strong><ul><li>Agregar índices por fecha</li><li>Evitar rangos enormes</li><li>Conservar No. empleado</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Flujo técnico</h4>
+                                <p>Reportes deben ser consultas reproducibles. Prefiere filtros explícitos, rangos acotados y columnas consistentes con No. empleado para que los resultados se puedan auditar contra ficha, checadas o nómina.</p>
+                                <ul><li>Agregar índices antes de abrir rangos grandes.</li><li>No mezclar lógica de exportación con cálculo de negocio.</li><li>Validar reportes con datos nulos o sin registros.</li></ul>
+                            </div>
+                            <div class="shot-grid">
+                                <a class="shot" href="assets/screens/reportes-puntualidad.png" target="_blank"><img src="assets/screens/reportes-puntualidad.png" alt="Reporte puntualidad técnico"><figcaption>Reporte de puntualidad.</figcaption></a>
+                                <a class="shot" href="assets/screens/reportes-incidencias.png" target="_blank"><img src="assets/screens/reportes-incidencias.png" alt="Reporte incidencias técnico"><figcaption>Reporte de incidencias.</figcaption></a>
+                            </div>
+                        </article>
+
+                        <article id="modulo-sistema" class="module-detail">
+                            <h3>Usuarios, roles y permisos</h3>
+                            <p>Los permisos usan `roles.matriz_permisos` como JSON versionado. `helpers.php` centraliza catálogo, normalización, compatibilidad legacy y bloqueo por página.</p>
+                            <div class="mini-columns">
+                                <div><strong>Archivos</strong><ul><li>`usuarios-lista.php`</li><li>`usuarios-reset-password.php`</li><li>`roles-permisos.php`</li><li>`partes/menu.php`</li><li>`lib/helpers.php`</li></ul></div>
+                                <div><strong>Tablas</strong><ul><li>`usuarios`</li><li>`roles`</li><li>`personal`</li></ul></div>
+                                <div><strong>Reglas</strong><ul><li>DUEÑO superrol</li><li>Página no catalogada conserva sesión normal</li><li>Menú visible según sección/página</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Flujo técnico</h4>
+                                <p>Permisos viven en `roles.matriz_permisos` y se interpretan en helpers. Si se agrega una página nueva, debe registrarse en el catálogo para que menú y acceso directo sean coherentes.</p>
+                                <ul><li>DUEÑO siempre debe permanecer como superrol.</li><li>Evitar que un rol se quite a sí mismo acceso a permisos.</li><li>Probar menú y URL directa después de guardar matriz.</li></ul>
+                            </div>
+                            <div class="shot-grid">
+                                <a class="shot" href="assets/screens/usuarios-lista.png" target="_blank"><img src="assets/screens/usuarios-lista.png" alt="Usuarios técnico"><figcaption>Usuarios.</figcaption></a>
+                                <a class="shot" href="assets/screens/roles-permisos.png" target="_blank"><img src="assets/screens/roles-permisos.png" alt="Permisos técnico"><figcaption>Permisos por rol.</figcaption></a>
+                            </div>
+                        </article>
+
+                        <article id="modulo-configuracion" class="module-detail">
+                            <h3>Configuración</h3>
+                            <p>La configuración editable vive en `configuracion_sistema`. `runtime_schema.php` inserta defaults y `helpers.php`/`payroll.php` los leen con helpers tipados.</p>
+                            <div class="mini-columns">
+                                <div><strong>Archivos</strong><ul><li>`configuracion-global.php`</li><li>`lib/runtime_schema.php`</li><li>`lib/helpers.php`</li></ul></div>
+                                <div><strong>Claves</strong><ul><li>`checadas_minutos_anticipacion`</li><li>`facial_puntaje_minimo`</li><li>`vacaciones_dias_*`</li><li>`faltas_descuento_*`</li></ul></div>
+                                <div><strong>Riesgos</strong><ul><li>Cambios afectan cálculos futuros</li><li>Valores vacíos toman default</li><li>Probar nómina y checadas después de cambios</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Flujo técnico</h4>
+                                <p>Las claves de negocio se crean con defaults en `runtime_schema.php` y se leen con helpers tipados. Al agregar una clave, documenta default, unidad, módulo afectado y prueba de regresión.</p>
+                                <ul><li>No hardcodear valores que ya son configurables.</li><li>Conservar compatibilidad si la clave no existe.</li><li>Evitar guardar secretos en `configuracion_sistema`.</li></ul>
+                            </div>
+                            <div class="shot-grid">
+                                <a class="shot" href="assets/screens/configuracion-global.png" target="_blank"><img src="assets/screens/configuracion-global.png" alt="Configuración global técnico"><figcaption>Configuración global respaldada por `configuracion_sistema`.</figcaption></a>
+                            </div>
+                        </article>
+
+                        <article id="modulo-app-movil" class="module-detail">
+                            <h3>App móvil</h3>
+                            <p>`app/index.html` concentra UI móvil y `app/api.php` concentra endpoints JSON. Comparte `runtime_schema.php` y `operations.php` con Control.</p>
+                            <div class="mini-columns">
+                                <div><strong>Archivos</strong><ul><li>`app/index.html`</li><li>`app/index.php`</li><li>`app/api.php`</li><li>`app/db.php`</li></ul></div>
+                                <div><strong>Actions</strong><ul><li>`login`</li><li>`dashboard`</li><li>`bitacora`</li><li>`checar`</li><li>`reportar_incidencia`</li><li>`chat_*`</li></ul></div>
+                                <div><strong>Datos</strong><ul><li>Turno actual</li><li>GPS</li><li>Selfie base64</li><li>Mensajes</li><li>Incidencias</li></ul></div>
+                            </div>
+                            <div class="module-playbook">
+                                <h4>Flujo técnico</h4>
+                                <p>La app móvil es HTML/JS y consume `app/api.php`. Al ampliar respuestas JSON, mantén compatibilidad con campos existentes y agrega campos nuevos de forma aditiva.</p>
+                                <ul><li>Validar sesión móvil antes de cada acción sensible.</li><li>Controlar tamaño de selfie antes de procesarla.</li><li>Limpiar intervalos de polling al cerrar sesión.</li></ul>
+                            </div>
+                            <div class="shot-grid"><a class="shot" href="assets/screens/app-movil.png" target="_blank"><img src="assets/screens/app-movil.png" alt="App móvil técnico"><figcaption>Cliente móvil HTML/JS.</figcaption></a></div>
+                        </article>
+                    </div>
+                </section>
+
+                <section id="api" class="section" data-search-item>
+                    <div class="section-header">
+                        <div>
+                            <span class="eyebrow">Integración móvil</span>
+                            <h2>API móvil</h2>
+                        </div>
+                    </div>
+                    <p>
+                        `app/api.php` expone endpoints JSON simples controlados por el parámetro `action`. La app móvil consume esta API directamente desde JavaScript.
+                    </p>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Action</th><th>Método típico</th><th>Función</th><th>Datos clave</th></tr></thead>
+                            <tbody>
+                                <tr><td>login</td><td>POST</td><td>Valida usuario/contraseña.</td><td>usuario, personal_id, foto base.</td></tr>
+                                <tr><td>dashboard</td><td>GET</td><td>Devuelve turno actual.</td><td>hora programada, hora real, siguiente evento, puede checar desde.</td></tr>
+                                <tr><td>bitacora</td><td>GET</td><td>Lista checadas del colaborador.</td><td>evento, fecha, estado, score facial, horarios.</td></tr>
+                                <tr><td>checar</td><td>POST</td><td>Registra entrada/salida.</td><td>GPS, selfie, turno, evento, estado.</td></tr>
+                                <tr><td>reportar_incidencia</td><td>POST</td><td>Crea incidencia.</td><td>sitio, personal, tipo, prioridad, descripción.</td></tr>
+                                <tr><td>chat_listar</td><td>GET</td><td>Consulta conversación.</td><td>mensajes ordenados y leído.</td></tr>
+                                <tr><td>chat_enviar</td><td>POST</td><td>Envía mensaje a RH.</td><td>mensaje y moderación básica.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <h3>Ejemplo de llamada local</h3>
+                    <div class="code-block">
+                        <button class="copy-code" type="button">Copiar</button>
+                        <pre>curl "http://localhost:7878/app/api.php?action=dashboard&amp;personal_id=1"</pre>
+                    </div>
+                </section>
+
+                <section id="datos" class="section" data-search-item>
+                    <div class="section-header">
+                        <div>
+                            <span class="eyebrow">Modelo relacional</span>
+                            <h2>Base de datos</h2>
+                        </div>
+                    </div>
+                    <div class="grid two">
+                        <div class="card"><h3>Seguridad</h3><p>`usuarios`, `roles` y `roles.matriz_permisos`.</p></div>
+                        <div class="card"><h3>Personal</h3><p>`personal`, bajas, vacaciones, faltas, bonos, documentos y prestaciones.</p></div>
+                        <div class="card"><h3>Operación</h3><p>`clientes`, `sitios`, `turnos`, `registros_asistencia`, `incidencias`.</p></div>
+                        <div class="card"><h3>Comunicación</h3><p>`mensajes_chat` y `bitacora_sistema`.</p></div>
+                        <div class="card"><h3>Nómina</h3><p>`nomina_periodos`, `nomina_resumen`, `nomina_conceptos`, capturas, préstamos, caja y sanciones.</p></div>
+                        <div class="card"><h3>Configuración</h3><p>`configuracion_sistema` guarda parámetros editables.</p></div>
+                    </div>
+                    <div class="callout warn">
+                        El sistema crea/agrega tablas y columnas desde `runtime_schema.php`. Esto facilita instalación incremental, pero conviene respaldar la base antes de actualizar producción.
+                    </div>
+                </section>
+
+                <section id="flujos-datos" class="section" data-search-item>
+                    <div class="section-header">
+                        <div>
+                            <span class="eyebrow">Datos en movimiento</span>
+                            <h2>Flujos de datos principales</h2>
+                        </div>
+                    </div>
+                    <div class="timeline">
+                        <div class="timeline-item"><strong>Login administrativo:</strong> `control/index.php` valida usuario y rol, crea sesión PHP y redirige al dashboard.</div>
+                        <div class="timeline-item"><strong>Render de página moderna:</strong> página PHP carga `lib/app.php`, valida sesión/permisos, consulta MySQL y renderiza con `lib/ui.php`.</div>
+                        <div class="timeline-item"><strong>Checada móvil:</strong> app obtiene turno, captura GPS/selfie, API valida ventana, geocerca y evidencia, inserta `registros_asistencia` y actualiza `turnos`.</div>
+                        <div class="timeline-item"><strong>Incidencia:</strong> app crea registro, Control lo lista y supervisión actualiza estado/seguimiento.</div>
+                        <div class="timeline-item"><strong>Nómina:</strong> cálculo toma turnos, checadas, faltas, descansos, vacaciones, caja, préstamos y capturas para persistir resumen/conceptos.</div>
+                        <div class="timeline-item"><strong>Permisos:</strong> roles guardan matriz JSON; menú y acceso directo validan sección/página.</div>
+                    </div>
+                </section>
+
+                <section id="seguridad" class="section" data-search-item>
+                    <div class="section-header">
+                        <div>
+                            <span class="eyebrow">Operación segura</span>
+                            <h2>Seguridad y mantenimiento</h2>
+                        </div>
+                    </div>
+                    <div class="grid two">
+                        <div class="callout danger">
+                            <strong>Credenciales:</strong> no deben publicarse en documentación ni repositorios. Usar placeholders en manuales y migrar a variables de entorno cuando sea posible.
+                        </div>
+                        <div class="callout">
+                            <strong>Backups:</strong> respaldar base de datos y carpetas `app/uploads` y `control/uploads` antes de cambios grandes.
+                        </div>
+                        <div class="callout warn">
+                            <strong>Runtime schema:</strong> para producción, validar `APP_SCHEMA_BOOTSTRAP` y probar cambios en copia de base.
+                        </div>
+                        <div class="callout">
+                            <strong>Permisos:</strong> el rol DUEÑO conserva acceso total; los demás dependen de matriz por rol.
+                        </div>
+                    </div>
+                </section>
+
+                <section id="programadores" class="section" data-search-item>
+                    <div class="section-header">
+                        <div>
+                            <span class="eyebrow">Extensión del sistema</span>
+                            <h2>Guía para programadores</h2>
+                        </div>
+                    </div>
+                    <div class="accordion">
+                        <details open>
+                            <summary>Agregar una página nueva a Control</summary>
+                            <div>
+                                <ol class="steps">
+                                    <li>Crear archivo PHP en `control/`.</li>
+                                    <li>Incluir `require_once __DIR__ . '/lib/app.php';` y, si usa layout nuevo, `lib/ui.php`.</li>
+                                    <li>Aplicar `app_require_session()` y `app_require_page_permission()` o roles específicos.</li>
+                                    <li>Agregar la página al catálogo en `app_permission_catalog()` si debe controlarse por permisos.</li>
+                                    <li>Agregar entrada de menú solo si será visible.</li>
+                                </ol>
+                            </div>
+                        </details>
+                        <details>
+                            <summary>Agregar una configuración global</summary>
+                            <div>
+                                <ol class="steps">
+                                    <li>Agregar clave default en `runtime_schema.php` dentro de `$defaults`.</li>
+                                    <li>Leerla con `app_config_int`, `app_config_float` o `app_config`.</li>
+                                    <li>Usarla en lógica de negocio sin hardcodear valores.</li>
+                                    <li>Documentarla en este manual si afecta operación.</li>
+                                </ol>
+                            </div>
+                        </details>
+                        <details>
+                            <summary>Modificar nómina</summary>
+                            <div>
+                                <p>Centraliza cambios en `control/lib/payroll.php` y evita duplicar cálculos en pantallas. Persiste conceptos en `nomina_conceptos` para que recibos/exportación expliquen el resultado.</p>
+                            </div>
+                        </details>
+                        <details>
+                            <summary>Actualizar esta wiki</summary>
+                            <div>
+                                <p>Edita los HTML de `manual/` y usa los componentes existentes: `section`, `card`, `steps`, `accordion`, `table-wrap`, `code-block`, `callout` y `tabs`.</p>
+                            </div>
+                        </details>
+                    </div>
+                </section>
+
+                <section id="troubleshooting" class="section" data-search-item>
+                    <div class="section-header">
+                        <div>
+                            <span class="eyebrow">Soporte</span>
+                            <h2>Troubleshooting</h2>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Problema</th><th>Causa probable</th><th>Qué revisar</th></tr></thead>
+                            <tbody>
+                                <tr><td>No abre localhost:7878</td><td>Servidor PHP apagado o puerto ocupado.</td><td>Ejecutar `php -S localhost:7878 -t .` desde la raíz.</td></tr>
+                                <tr><td>Error de conexión DB</td><td>Host, usuario, password o base incorrectos.</td><td>`control/lib/db.php`, `app/db.php`, permisos MySQL y red.</td></tr>
+                                <tr><td>Fatal maximum execution time</td><td>Consulta pesada o tiempo PHP bajo.</td><td>`APP_MAX_EXECUTION_TIME`, índices, consultas de nómina/listas.</td></tr>
+                                <tr><td>No aparecen menús</td><td>Permisos por rol.</td><td>`roles-permisos.php` y matriz del rol.</td></tr>
+                                <tr><td>Checada queda pendiente</td><td>Falta foto base, score bajo, GD no disponible o selfie inválida.</td><td>Ficha del colaborador, extensión GD, tamaño de selfie y detalle de checada.</td></tr>
+                                <tr><td>No calcula nómina como se espera</td><td>Datos incompletos del periodo.</td><td>Turnos, checadas, faltas, descansos, vacaciones, préstamos, caja y capturas manuales.</td></tr>
+                                <tr><td>Schema no se actualiza</td><td>Bootstrap en `never` o marcador temporal vigente.</td><td>`APP_SCHEMA_BOOTSTRAP`, versión de schema y permisos DB para ALTER/CREATE.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <div class="no-results" data-no-results>No se encontraron coincidencias en el manual técnico.</div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">Manual técnico MSTV Control. Usa placeholders para credenciales y evita publicar secretos.</footer>
+    <button class="btn back-top" data-back-top type="button">Arriba</button>
+    <script src="assets/manual.js"></script>
+</body>
+</html>
