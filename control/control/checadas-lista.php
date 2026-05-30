@@ -604,7 +604,7 @@ function badgeEstado($estado) {
                                                                 <?php if (!empty($c['url_selfie'])): ?>
                                                                     <a href="<?php echo htmlspecialchars($c['url_selfie']); ?>"
                                                                        target="_blank">
-                                                                        <img src="<?php echo htmlspecialchars($c['url_selfie']); ?>"
+                                                                        <img src="/app/<?php echo htmlspecialchars($c['url_selfie']); ?>"
                                                                              alt="Selfie"
                                                                              class="selfie-thumb">
                                                                     </a>

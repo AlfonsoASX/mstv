@@ -79,7 +79,7 @@
                     <h3>Levantar en puerto 7878</h3>
                     <div class="code-block">
                         <button class="copy-code" type="button">Copiar</button>
-                        <pre>cd /Users/alfonsoasx/Documents/GitHub/mstv/control
+                        <pre>cd /Users/usuario/Documents/GitHub/mstv/control
 php -S localhost:7878 -t .</pre>
                     </div>
 
@@ -135,7 +135,7 @@ mysqli_set_charset($conexion, "utf8mb4");</pre>
                     <h3>Comando de importación</h3>
                     <div class="code-block">
                         <button class="copy-code" type="button">Copiar</button>
-                        <pre>cd /Users/alfonsoasx/Documents/GitHub/mstv/control
+                        <pre>cd /Users/usuario/Documents/GitHub/mstv/control
 mysql -u TU_USUARIO -p TU_BASE_DE_DATOS &lt; manual/assets/mstv-control-schema.sql</pre>
                     </div>
 
@@ -430,6 +430,18 @@ mysql -u TU_USUARIO -p TU_BASE_DE_DATOS &lt; manual/assets/mstv-control-schema.s
                         <article id="modulo-sistema" class="module-detail">
                             <h3>Usuarios, roles y permisos</h3>
                             <p>Los permisos usan `roles.matriz_permisos` como JSON versionado. `helpers.php` centraliza catálogo, normalización, compatibilidad legacy y bloqueo por página.</p>
+
+                            <div class="module-playbook"><h4>SQL:</h4>
+
+                                <p>
+                                    INSERT INTO `usuarios` (`id`, `usuario`, `contrasena_hash`, `email`, `rol_id`, `esta_activo`, `intentos_fallidos`, `bloqueado_hasta`, `ultimo_acceso`, `fecha_creacion`) VALUES
+(1, 'admin', '$2y$10$NOvxlcHGdL8KcZleqXYZXO7MS29xEEYyehF2WpxtDGCYHRolQpQti', '', 1, 1, 0, NULL, '2026-05-30 13:48:36', '2025-11-28 10:11:56');
+                                </p>
+                                <p><b>Usuario</b>: admin <b>Contraseña</b>: 123</p>
+                                <p><b>Nota importante</b>: borrar este usuario una vez que el sistema ya tenga otro usuario admin.</p>
+
+
+                            </div>
                             <div class="mini-columns">
                                 <div><strong>Archivos</strong><ul><li>`usuarios-lista.php`</li><li>`usuarios-reset-password.php`</li><li>`roles-permisos.php`</li><li>`partes/menu.php`</li><li>`lib/helpers.php`</li></ul></div>
                                 <div><strong>Tablas</strong><ul><li>`usuarios`</li><li>`roles`</li><li>`personal`</li></ul></div>

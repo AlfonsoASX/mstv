@@ -474,7 +474,7 @@ if ($detalle) {
                                                     <div class="text-center mb-3">
                                                         <?php if ($detalle_url_selfie): ?>
                                                             <a href="<?php echo htmlspecialchars($detalle_url_selfie); ?>" target="_blank">
-                                                                <img src="<?php echo htmlspecialchars($detalle_url_selfie); ?>"
+                                                                <img src="/app/<?php echo htmlspecialchars($detalle_url_selfie); ?>"
                                                                      alt="Selfie de checada"
                                                                      class="selfie-detalle shadow-sm">
                                                             </a>
