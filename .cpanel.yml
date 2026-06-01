@@ -3,3 +3,4 @@ deployment:
   tasks:
     - export DEPLOYPATH=/home2/veron119/mstv.com.mx/
     - /bin/cp -R * $DEPLOYPATH
+
