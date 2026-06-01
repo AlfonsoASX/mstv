@@ -3,7 +3,7 @@
 session_start();
 
 
-include 'lib/db.php'
+include 'lib/db.php';
 /* =======================================
    FUNCIÓN: LIMPIAR TEXTO
    ======================================= */
