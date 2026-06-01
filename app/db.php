@@ -1,3 +1,3 @@
 <?php
 
-include '../control/db.php';
+include '../control/lib/db.php';
