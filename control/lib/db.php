@@ -1,9 +1,14 @@
 <?php
 
-$db_host = "ganas001.mysql.guardedhost.com";
-$db_user = "ganas001_control";
-$db_pass = "zV76(b5Hvn";
-$db_name = "ganas001_asx";
+
+
+
+$db_host = "localhost";
+$db_user = "veron119_mstv";
+$db_pass = "s$Kxze,gL_ri";
+$db_name = "veron119_mstv";
+
+
 
 $conexion = mysqli_connect($db_host, $db_user, $db_pass, $db_name);
 if (!$conexion) {
