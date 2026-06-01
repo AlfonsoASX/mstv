@@ -5,7 +5,7 @@
 
 $db_host = "localhost";
 $db_user = "veron119_mstv";
-$db_pass = "s$Kxze,gL_ri";
+$db_pass = 's$Kxze,gL_ri';
 $db_name = "veron119_mstv";
 
 
