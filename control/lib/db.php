@@ -3,7 +3,7 @@
 
 
 
-$db_host = "localhost";
+$db_host = "50.6.138.29";
 $db_user = "veron119_mstv";
 $db_pass = "s$Kxze,gL_ri";
 $db_name = "veron119_mstv";
