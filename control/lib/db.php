@@ -1,18 +1,23 @@
 <?php
 
-
-
-
-$db_host = "localhost";
+$db_host = "50.6.138.29";
 $db_user = "veron119_mstv";
 $db_pass = 's$Kxze,gL_ri';
 $db_name = "veron119_mstv";
 
 
+/*
 
-$conexion = mysqli_connect($db_host, $db_user, $db_pass, $db_name);
+
+$db_host = "ganas001.mysql.guardedhost.com";
+$db_user = "ganas001_control";
+$db_pass = 'zV76(b5Hvn';
+$db_name = "ganas001_asx";
+
+*/
+
+$conexion = @mysqli_connect($db_host, $db_user, $db_pass, $db_name);
 if (!$conexion) {
-    echo 'err:db'. mysqli_connect_error();
     die("Error de conexión a la base de datos: " . mysqli_connect_error());
 }
 

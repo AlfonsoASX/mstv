@@ -438,10 +438,15 @@ async function login() {
     errorBox.style.display = 'none';
 
     try {
+        const body = new FormData();
+        body.append('username', username);
+        body.append('usuario', username);
+        body.append('password', password);
+        body.append('contrasena', password);
+
         const response = await fetch(`${API_URL}?action=login`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
+            body
         });
         const data = await response.json();
 

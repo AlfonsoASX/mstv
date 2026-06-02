@@ -59,6 +59,22 @@ if ($res = mysqli_query($conexion, $sql)) {
     <link rel="stylesheet" type="text/css" href="../src/plugins/src/table/datatable/dt-global_style.css">
     <!-- END PAGE LEVEL STYLES -->
 
+    <style>
+        #modalUsuario .modal-content,
+        #modalUsuario .modal-header,
+        #modalUsuario .modal-body,
+        #modalUsuario .modal-footer {
+            background-color: #ffffff;
+            color: #0e1726;
+        }
+
+        #modalUsuario .modal-title,
+        #modalUsuario .form-label,
+        #modalUsuario .form-check-label {
+            color: #0e1726;
+        }
+    </style>
+
 </head>
 <body class="layout-boxed">
     <!-- BEGIN LOADER -->
@@ -298,6 +314,7 @@ if ($res = mysqli_query($conexion, $sql)) {
     <!-- FIN MODAL -->
 
     <!-- BEGIN GLOBAL MANDATORY SCRIPTS -->
+    <script src="../src/plugins/src/global/vendors.min.js"></script>
     <script src="../src/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script src="../src/plugins/src/perfect-scrollbar/perfect-scrollbar.min.js"></script>
     <script src="../src/plugins/src/mousetrap/mousetrap.min.js"></script>
@@ -313,24 +330,103 @@ if ($res = mysqli_query($conexion, $sql)) {
     document.addEventListener('DOMContentLoaded', function () {
 
         // DataTable
-        let table = $('#usuarios-table').DataTable({
-            language: {
-                sProcessing:   "Procesando...",
-                sLengthMenu:   "Mostrar _MENU_ registros",
-                sZeroRecords:  "No se encontraron resultados",
-                sEmptyTable:   "Ningún dato disponible en esta tabla",
-                sInfo:         "Mostrando _START_ a _END_ de _TOTAL_ registros",
-                sInfoEmpty:    "Mostrando 0 a 0 de 0 registros",
-                sInfoFiltered: "(filtrado de _MAX_ registros totales)",
-                sSearch:       "Buscar:",
-                oPaginate: {
-                    sFirst:    "Primero",
-                    sLast:     "Último",
-                    sNext:     "Siguiente",
-                    sPrevious: "Anterior"
-                }
+        if (window.jQuery && $.fn && $.fn.DataTable) {
+            try {
+                $('#usuarios-table').DataTable({
+                    language: {
+                        sProcessing:   "Procesando...",
+                        sLengthMenu:   "Mostrar _MENU_ registros",
+                        sZeroRecords:  "No se encontraron resultados",
+                        sEmptyTable:   "Ningún dato disponible en esta tabla",
+                        sInfo:         "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                        sInfoEmpty:    "Mostrando 0 a 0 de 0 registros",
+                        sInfoFiltered: "(filtrado de _MAX_ registros totales)",
+                        sSearch:       "Buscar:",
+                        oPaginate: {
+                            sFirst:    "Primero",
+                            sLast:     "Último",
+                            sNext:     "Siguiente",
+                            sPrevious: "Anterior"
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('No fue posible inicializar la tabla de usuarios.', error);
             }
-        });
+        } else {
+            console.error('jQuery/DataTables no está disponible para usuarios-lista.php.');
+        }
+
+        const usuariosTable = document.getElementById('usuarios-table');
+
+        function abrirUsuario(id, modo) {
+            if (!id) return;
+
+            fetch('usuarios-ajax.php?action=get&id=' + encodeURIComponent(id))
+                .then(r => r.json())
+                .then(data => {
+                    if (!data || data.error) {
+                        alert(data.error || 'No se pudo cargar el usuario.');
+                        return;
+                    }
+
+                    usrId.value       = data.id;
+                    usrAccion.value   = modo;
+                    usrUsuario.value  = data.usuario || '';
+                    usrEmail.value    = data.email || '';
+                    usrRol.value      = data.rol_id || '';
+                    usrPassword.value = '';
+                    usrActivo.checked = (parseInt(data.esta_activo) === 1);
+
+                    if (modo === 'ver') {
+                        modalLabel.textContent = 'Ver usuario';
+                        usrUsuario.setAttribute('readonly', 'readonly');
+                        usrEmail.setAttribute('readonly', 'readonly');
+                        usrRol.setAttribute('disabled', 'disabled');
+                        usrPassword.setAttribute('readonly', 'readonly');
+                        usrActivo.setAttribute('disabled', 'disabled');
+                        btnGuardarUsuario.style.display = 'none';
+                    } else {
+                        modalLabel.textContent = 'Editar usuario';
+                        usrUsuario.removeAttribute('readonly');
+                        usrEmail.removeAttribute('readonly');
+                        usrRol.removeAttribute('disabled');
+                        usrPassword.removeAttribute('readonly');
+                        usrActivo.removeAttribute('disabled');
+                        btnGuardarUsuario.style.display = '';
+                        usrPassword.required = false;
+                        helpPassword.textContent = 'Déjala en blanco si no deseas cambiar la contraseña.';
+                    }
+
+                    modalUsuario.show();
+                })
+                .catch(() => alert('Error al consultar el usuario.'));
+        }
+
+        function toggleUsuario(id) {
+            if (!id) return;
+
+            if (!confirm('¿Seguro que deseas activar/desactivar este usuario?')) {
+                return;
+            }
+
+            fetch('usuarios-ajax.php?action=toggle', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+                },
+                body: 'id=' + encodeURIComponent(id)
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data && data.success) {
+                    location.reload(); // sencillo y confiable
+                } else {
+                    alert(data.error || 'No se pudo actualizar el estado.');
+                }
+            })
+            .catch(() => alert('Error al actualizar el estado.'));
+        }
 
         const modalEl = document.getElementById('modalUsuario');
         const modalUsuario = new bootstrap.Modal(modalEl);
@@ -369,104 +465,23 @@ if ($res = mysqli_query($conexion, $sql)) {
             modalUsuario.show();
         });
 
-        // Ver
-        $('#usuarios-table').on('click', '.btn-ver', function () {
-            const id = this.closest('tr').getAttribute('data-id');
-            if (!id) return;
+        if (usuariosTable) {
+            usuariosTable.addEventListener('click', function (event) {
+                const button = event.target.closest('button');
+                if (!button) return;
 
-            fetch('usuarios-ajax.php?action=get&id=' + encodeURIComponent(id))
-                .then(r => r.json())
-                .then(data => {
-                    if (!data || data.error) {
-                        alert(data.error || 'No se pudo cargar el usuario.');
-                        return;
-                    }
-                    usrId.value       = data.id;
-                    usrAccion.value   = 'ver';
-                    usrUsuario.value  = data.usuario || '';
-                    usrEmail.value    = data.email || '';
-                    usrRol.value      = data.rol_id || '';
-                    usrPassword.value = '';
-                    usrActivo.checked = (parseInt(data.esta_activo) === 1);
+                const row = button.closest('tr');
+                const id = row ? row.getAttribute('data-id') : '';
 
-                    modalLabel.textContent = 'Ver usuario';
-
-                    usrUsuario.setAttribute('readonly', 'readonly');
-                    usrEmail.setAttribute('readonly', 'readonly');
-                    usrRol.setAttribute('disabled', 'disabled');
-                    usrPassword.setAttribute('readonly', 'readonly');
-                    usrActivo.setAttribute('disabled', 'disabled');
-                    btnGuardarUsuario.style.display = 'none';
-
-                    modalUsuario.show();
-                })
-                .catch(() => alert('Error al consultar el usuario.'));
-        });
-
-        // Editar
-        $('#usuarios-table').on('click', '.btn-editar', function () {
-            const id = this.closest('tr').getAttribute('data-id');
-            if (!id) return;
-
-            fetch('usuarios-ajax.php?action=get&id=' + encodeURIComponent(id))
-                .then(r => r.json())
-                .then(data => {
-                    if (!data || data.error) {
-                        alert(data.error || 'No se pudo cargar el usuario.');
-                        return;
-                    }
-                    usrId.value       = data.id;
-                    usrAccion.value   = 'editar';
-                    usrUsuario.value  = data.usuario || '';
-                    usrEmail.value    = data.email || '';
-                    usrRol.value      = data.rol_id || '';
-                    usrPassword.value = '';
-                    usrActivo.checked = (parseInt(data.esta_activo) === 1);
-
-                    modalLabel.textContent = 'Editar usuario';
-
-                    usrUsuario.removeAttribute('readonly');
-                    usrEmail.removeAttribute('readonly');
-                    usrRol.removeAttribute('disabled');
-                    usrPassword.removeAttribute('readonly');
-                    usrActivo.removeAttribute('disabled');
-                    btnGuardarUsuario.style.display = '';
-
-                    usrPassword.required = false;
-                    helpPassword.textContent = 'Déjala en blanco si no deseas cambiar la contraseña.';
-
-                    modalUsuario.show();
-                })
-                .catch(() => alert('Error al consultar el usuario.'));
-        });
-
-        // Activar / Desactivar
-        $('#usuarios-table').on('click', '.btn-toggle-estado', function () {
-            const row = this.closest('tr');
-            const id  = row.getAttribute('data-id');
-            if (!id) return;
-
-            if (!confirm('¿Seguro que deseas activar/desactivar este usuario?')) {
-                return;
-            }
-
-            fetch('usuarios-ajax.php?action=toggle', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
-                },
-                body: 'id=' + encodeURIComponent(id)
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data && data.success) {
-                    location.reload(); // sencillo y confiable
-                } else {
-                    alert(data.error || 'No se pudo actualizar el estado.');
+                if (button.classList.contains('btn-ver')) {
+                    abrirUsuario(id, 'ver');
+                } else if (button.classList.contains('btn-editar')) {
+                    abrirUsuario(id, 'editar');
+                } else if (button.classList.contains('btn-toggle-estado')) {
+                    toggleUsuario(id);
                 }
-            })
-            .catch(() => alert('Error al actualizar el estado.'));
-        });
+            });
+        }
 
         // Guardar (crear / editar)
         formUsuario.addEventListener('submit', function (e) {

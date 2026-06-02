@@ -40,15 +40,25 @@ function responder(int $code, string $status, string $message, array $extra = []
 
 function request_data(): array
 {
+    if (!empty($_POST)) {
+        return $_POST;
+    }
+
     $rawData = file_get_contents('php://input');
+    if ($rawData === false || trim($rawData) === '') {
+        return [];
+    }
+
     $json = json_decode($rawData, true);
 
-    if (is_array($json) && !empty($json)) {
+    if (is_array($json)) {
         return $json;
     }
 
-    if (!empty($_POST)) {
-        return $_POST;
+    $parsed = [];
+    parse_str($rawData, $parsed);
+    if (!empty($parsed)) {
+        return $parsed;
     }
 
     return [];
@@ -62,6 +72,21 @@ function request_action(array $data): string
 function normalizar_texto($value): string
 {
     return trim((string)$value);
+}
+
+function request_value(array $data, array $keys, string $default = ''): string
+{
+    foreach ($keys as $key) {
+        if (isset($data[$key]) && trim((string)$data[$key]) !== '') {
+            return (string)$data[$key];
+        }
+
+        if (isset($_REQUEST[$key]) && trim((string)$_REQUEST[$key]) !== '') {
+            return (string)$_REQUEST[$key];
+        }
+    }
+
+    return $default;
 }
 
 function obtener_personal(mysqli $conexion, int $personalId): ?array
@@ -481,8 +506,8 @@ $action = request_action($data);
 
 switch ($action) {
     case 'login':
-        $usuario = normalizar_texto($data['username'] ?? '');
-        $password = (string)($data['password'] ?? '');
+        $usuario = normalizar_texto(request_value($data, ['username', 'usuario', 'user']));
+        $password = request_value($data, ['password', 'contrasena', 'contraseña', 'pass']);
 
         if ($usuario === '' || $password === '') {
             responder(400, 'error', 'Usuario y contraseña son requeridos.');
