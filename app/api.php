@@ -98,6 +98,8 @@ function obtener_personal(mysqli $conexion, int $personalId): ?array
             p.nombres,
             p.apellidos,
             p.url_foto_base,
+            p.facial_descriptor_json,
+            p.facial_descriptor_model,
             p.estado,
             u.usuario,
             u.esta_activo
@@ -371,82 +373,65 @@ function resolver_ruta_local_foto_base(?string $path): ?string
     return null;
 }
 
-function imagen_a_hash(string $path): ?string
+function facial_descriptor_parse($value): ?array
 {
-    if (!function_exists('imagecreatefromstring') || !function_exists('imagecreatetruecolor')) {
-        return null;
-    }
+    if (is_array($value)) {
+        $decoded = $value;
+    } else {
+        $value = trim((string)$value);
+        if ($value === '') {
+            return null;
+        }
 
-    $binary = @file_get_contents($path);
-    if ($binary === false) {
-        return null;
-    }
-
-    $source = @imagecreatefromstring($binary);
-    if (!$source) {
-        return null;
-    }
-
-    $width = imagesx($source);
-    $height = imagesy($source);
-
-    if ($width <= 0 || $height <= 0) {
-        imagedestroy($source);
-        return null;
-    }
-
-    $thumb = imagecreatetruecolor(8, 8);
-    imagecopyresampled($thumb, $source, 0, 0, 0, 0, 8, 8, $width, $height);
-    imagefilter($thumb, IMG_FILTER_GRAYSCALE);
-
-    $pixels = [];
-    $sum = 0;
-
-    for ($y = 0; $y < 8; $y++) {
-        for ($x = 0; $x < 8; $x++) {
-            $rgb = imagecolorat($thumb, $x, $y);
-            $gray = $rgb & 0xFF;
-            $pixels[] = $gray;
-            $sum += $gray;
+        $decoded = json_decode($value, true);
+        if (isset($decoded['descriptor']) && is_array($decoded['descriptor'])) {
+            $decoded = $decoded['descriptor'];
         }
     }
 
-    imagedestroy($thumb);
-    imagedestroy($source);
-
-    $average = $sum / 64;
-    $hash = '';
-
-    foreach ($pixels as $pixel) {
-        $hash .= ($pixel >= $average) ? '1' : '0';
+    if (!is_array($decoded) || count($decoded) !== 128) {
+        return null;
     }
 
-    return $hash;
+    $descriptor = [];
+    foreach ($decoded as $value) {
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        $floatValue = (float)$value;
+        if (!is_finite($floatValue)) {
+            return null;
+        }
+
+        $descriptor[] = $floatValue;
+    }
+
+    return $descriptor;
 }
 
-function comparar_fotos_basico(?string $selfiePath, ?string $fotoBasePath): ?float
+function facial_distancia_euclidiana(?array $a, ?array $b): ?float
 {
-    if (!$selfiePath || !$fotoBasePath) {
+    if (!$a || !$b || count($a) !== 128 || count($b) !== 128) {
         return null;
     }
 
-    $selfieHash = imagen_a_hash($selfiePath);
-    $baseHash = imagen_a_hash($fotoBasePath);
+    $sum = 0.0;
+    for ($i = 0; $i < 128; $i++) {
+        $diff = $a[$i] - $b[$i];
+        $sum += $diff * $diff;
+    }
 
-    if ($selfieHash === null || $baseHash === null || strlen($selfieHash) !== strlen($baseHash)) {
+    return round(sqrt($sum), 6);
+}
+
+function facial_score_desde_distancia(?float $distancia): ?float
+{
+    if ($distancia === null) {
         return null;
     }
 
-    $distance = 0;
-    $length = strlen($selfieHash);
-
-    for ($i = 0; $i < $length; $i++) {
-        if ($selfieHash[$i] !== $baseHash[$i]) {
-            $distance++;
-        }
-    }
-
-    return round((($length - $distance) / $length) * 100, 2);
+    return round(max(0.0, min(100.0, (1.0 - min(1.0, $distancia)) * 100.0)), 2);
 }
 
 function obtener_mensajes_chat(mysqli $conexion, int $usuarioId, int $limit = 60): array
@@ -522,7 +507,8 @@ switch ($action) {
                 p.id AS personal_id,
                 p.nombres,
                 p.apellidos,
-                p.url_foto_base
+                p.url_foto_base,
+                p.facial_descriptor_json
             FROM usuarios u
             LEFT JOIN personal p ON p.usuario_id = u.id
             WHERE u.usuario = ?
@@ -560,6 +546,7 @@ switch ($action) {
                 'usuario' => (string)$fila['usuario'],
                 'nombre_completo' => trim($fila['nombres'] . ' ' . $fila['apellidos']),
                 'foto_base_registrada' => trim((string)$fila['url_foto_base']) !== '',
+                'facial_descriptor_registrado' => facial_descriptor_parse($fila['facial_descriptor_json'] ?? null) !== null,
             ],
         ]);
         break;
@@ -662,6 +649,7 @@ switch ($action) {
         $dentroGeocerca = (int)($data['esta_dentro_geocerca'] ?? 0) === 1 ? 1 : 0;
         $comentarios = normalizar_texto($data['comentarios'] ?? '');
         $fotoBase64 = (string)($data['fotoBase64'] ?? '');
+        $selfieDescriptor = facial_descriptor_parse($data['facial_descriptor_json'] ?? null);
 
         if ($tipoEvento === 'LLEGADA') {
             $tipoEvento = 'ENTRADA';
@@ -709,19 +697,26 @@ switch ($action) {
         }
 
         $fotoBasePath = resolver_ruta_local_foto_base($personal['url_foto_base'] ?? null);
-        $puntajeFacial = comparar_fotos_basico($selfie['path'], $fotoBasePath);
+        $baseDescriptor = facial_descriptor_parse($personal['facial_descriptor_json'] ?? null);
+        $distanciaFacial = facial_distancia_euclidiana($selfieDescriptor, $baseDescriptor);
+        $puntajeFacial = facial_score_desde_distancia($distanciaFacial);
         $minWidth = app_config_int($configs, 'facial_selfie_min_width', 180);
         $minHeight = app_config_int($configs, 'facial_selfie_min_height', 180);
-        $minScore = app_config_float($configs, 'facial_puntaje_minimo', 35.0);
-        $verificadoVida = ($selfie['width'] >= $minWidth && $selfie['height'] >= $minHeight) ? 1 : 0;
+        $maxDistance = app_config_float($configs, 'facial_distancia_maxima', 0.55);
+        if ($maxDistance <= 0) {
+            $maxDistance = 0.55;
+        }
+        $verificadoVida = ($selfie['width'] >= $minWidth && $selfie['height'] >= $minHeight && $selfieDescriptor !== null) ? 1 : 0;
 
         $estado = 'ACEPTADO';
         if ($dentroGeocerca !== 1) {
             $estado = 'RECHAZADO_GPS';
         } elseif ($verificadoVida !== 1) {
             $estado = 'RECHAZADO_ROSTRO';
-        } elseif ($fotoBasePath === null || $puntajeFacial === null || $puntajeFacial < $minScore) {
+        } elseif ($baseDescriptor === null) {
             $estado = 'PENDIENTE_REVISION';
+        } elseif ($distanciaFacial === null || $distanciaFacial > $maxDistance) {
+            $estado = 'RECHAZADO_ROSTRO';
         }
 
         $sql = "
@@ -802,12 +797,24 @@ switch ($action) {
             ]
         );
 
-        responder(200, 'success', 'Registro de ' . strtolower($tipoEvento) . ' guardado correctamente.', [
+        $mensaje = 'Registro de ' . strtolower($tipoEvento) . ' guardado correctamente.';
+        if ($estado === 'RECHAZADO_GPS') {
+            $mensaje = 'Registro guardado como rechazado por GPS.';
+        } elseif ($estado === 'RECHAZADO_ROSTRO') {
+            $mensaje = 'Registro rechazado: el rostro no coincide con el enrolamiento facial.';
+        } elseif ($estado === 'PENDIENTE_REVISION') {
+            $mensaje = 'Registro guardado para revisión manual: falta enrolamiento facial válido.';
+        }
+
+        responder(200, 'success', $mensaje, [
             'registro_id' => $registroId,
             'estado' => $estado,
             'puntaje_facial' => $puntajeFacial,
+            'distancia_facial' => $distanciaFacial,
+            'facial_umbral' => $maxDistance,
             'verificado_vida' => $verificadoVida,
             'foto_base_registrada' => $fotoBasePath !== null,
+            'facial_descriptor_registrado' => $baseDescriptor !== null,
             'hora_programada_entrada' => $turno['hora_inicio'] ?? null,
             'hora_real_entrada' => $tipoEvento === 'ENTRADA' ? date('Y-m-d H:i:s') : ($turno['hora_entrada_real'] ?? null),
             'hora_programada_salida' => $turno['hora_fin'] ?? null,

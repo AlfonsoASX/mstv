@@ -395,8 +395,11 @@
     </div>
 </div>
 
+<script src="assets/face-api/face-api.min.js"></script>
+<script src="assets/js/facial-recognition.js"></script>
 <script>
 const API_URL = 'api.php';
+const FACIAL_MODEL_URI = 'assets/face-api/models';
 let currentUser = null;
 let currentTurno = null;
 let tipoChecadaActual = '';
@@ -407,8 +410,19 @@ let datosChecada = {
     latitud: 0,
     longitud: 0,
     dentro_geocerca: 0,
-    fotoBase64: ''
+    fotoBase64: '',
+    facialDescriptorJson: '',
+    facialDescriptorModel: '',
+    facialDetectionScore: ''
 };
+
+if (window.MSTVFacial) {
+    window.MSTVFacial.configure({
+        modelUri: FACIAL_MODEL_URI,
+        minDetectionScore: 0.55,
+        inputSize: 320
+    });
+}
 
 function navTo(screenId, element) {
     activeScreen = screenId;
@@ -554,9 +568,13 @@ async function cargarDashboard() {
             document.getElementById('btn-salida').disabled = true;
         }
 
-        document.getElementById('dash-foto-base').innerHTML = currentUser.foto_base_registrada
-            ? '<span class="status-pill status-ok"><i class="fa-solid fa-camera"></i> Foto base registrada para comparación</span>'
-            : '<span class="status-pill status-warn"><i class="fa-solid fa-camera-retro"></i> Falta foto base del colaborador; la revisión será visual desde control</span>';
+        if (currentUser.facial_descriptor_registrado) {
+            document.getElementById('dash-foto-base').innerHTML = '<span class="status-pill status-ok"><i class="fa-solid fa-user-check"></i> Rostro enrolado para comparación</span>';
+        } else if (currentUser.foto_base_registrada) {
+            document.getElementById('dash-foto-base').innerHTML = '<span class="status-pill status-warn"><i class="fa-solid fa-camera"></i> Foto base sin enrolamiento facial; requiere actualización desde control</span>';
+        } else {
+            document.getElementById('dash-foto-base').innerHTML = '<span class="status-pill status-warn"><i class="fa-solid fa-camera-retro"></i> Falta foto base del colaborador; la revisión será visual desde control</span>';
+        }
     } catch (error) {
         currentTurno = null;
         document.getElementById('dash-turno-sugerido').innerText = 'No fue posible cargar el turno.';
@@ -615,7 +633,15 @@ function iniciarChecada(tipo) {
     }
 
     tipoChecadaActual = tipo;
-    datosChecada = { latitud: 0, longitud: 0, dentro_geocerca: 0, fotoBase64: '' };
+    datosChecada = {
+        latitud: 0,
+        longitud: 0,
+        dentro_geocerca: 0,
+        fotoBase64: '',
+        facialDescriptorJson: '',
+        facialDescriptorModel: '',
+        facialDetectionScore: ''
+    };
 
     document.getElementById('modal-title').innerText = tipo === 'ENTRADA' ? 'Registro de entrada' : 'Registro de salida';
     document.getElementById('paso-gps').style.display = 'block';
@@ -624,6 +650,7 @@ function iniciarChecada(tipo) {
     document.getElementById('scanner').style.display = 'none';
     document.getElementById('facial-status').style.display = 'none';
     document.getElementById('btn-capturar').style.display = 'block';
+    document.getElementById('btn-capturar').disabled = false;
     document.getElementById('checada-comentario').value = '';
     document.getElementById('checada-modal').style.display = 'flex';
 
@@ -638,7 +665,7 @@ function obtenerUbicacion() {
     }
 
     navigator.geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
             datosChecada.latitud = position.coords.latitude;
             datosChecada.longitud = position.coords.longitude;
 
@@ -654,7 +681,13 @@ function obtenerUbicacion() {
 
             document.getElementById('paso-gps').style.display = 'none';
             document.getElementById('paso-facial').style.display = 'block';
-            iniciarCamara();
+            try {
+                await prepararReconocimientoFacial();
+                await iniciarCamara();
+            } catch (error) {
+                alert(error.message || 'No se pudo preparar el reconocimiento facial.');
+                cerrarModal();
+            }
         },
         () => {
             alert('Debes permitir el acceso a tu ubicación para registrar entrada o salida.');
@@ -662,6 +695,23 @@ function obtenerUbicacion() {
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
+}
+
+function actualizarFacialStatus(message, type) {
+    const status = document.getElementById('facial-status');
+    status.style.display = 'block';
+    status.textContent = message;
+    status.style.color = type === 'error' ? '#ff8d8d' : (type === 'warn' ? '#ffd27a' : '#7de9ab');
+}
+
+async function prepararReconocimientoFacial() {
+    if (!window.MSTVFacial) {
+        throw new Error('No se pudo cargar la libreria de reconocimiento facial.');
+    }
+
+    actualizarFacialStatus('Cargando reconocimiento facial...', 'info');
+    await window.MSTVFacial.loadModels();
+    actualizarFacialStatus('Coloca tu rostro de frente y captura la selfie.', 'info');
 }
 
 function actualizarEstadoGeocerca(dentro) {
@@ -695,31 +745,80 @@ async function iniciarCamara() {
     }
 }
 
-function capturarSelfie() {
+function esperarVideoListo(video) {
+    if (video.videoWidth > 0 && video.videoHeight > 0) {
+        return Promise.resolve();
+    }
+
+    return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+            cleanup();
+            reject(new Error('La cámara aún no está lista. Intenta de nuevo.'));
+        }, 5000);
+
+        function cleanup() {
+            clearTimeout(timeout);
+            video.removeEventListener('loadedmetadata', onReady);
+            video.removeEventListener('canplay', onReady);
+        }
+
+        function onReady() {
+            if (video.videoWidth > 0 && video.videoHeight > 0) {
+                cleanup();
+                resolve();
+            }
+        }
+
+        video.addEventListener('loadedmetadata', onReady);
+        video.addEventListener('canplay', onReady);
+    });
+}
+
+async function capturarSelfie() {
     const video = document.getElementById('video-feed');
     const canvas = document.getElementById('photo-canvas');
     const context = canvas.getContext('2d');
+    const btn = document.getElementById('btn-capturar');
 
-    const maxWidth = 640;
-    const scale = maxWidth / video.videoWidth;
-    canvas.width = maxWidth;
-    canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    datosChecada.fotoBase64 = canvas.toDataURL('image/jpeg', 0.75);
+    btn.disabled = true;
+    actualizarFacialStatus('Analizando rostro...', 'info');
 
-    if (streamGlobal) {
-        streamGlobal.getTracks().forEach((track) => track.stop());
-        streamGlobal = null;
+    try {
+        await esperarVideoListo(video);
+
+        const maxWidth = 640;
+        const scale = maxWidth / video.videoWidth;
+        canvas.width = maxWidth;
+        canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const facial = await window.MSTVFacial.analyze(canvas);
+        if (!facial.ok) {
+            throw new Error(facial.message || 'No se pudo validar el rostro.');
+        }
+
+        datosChecada.fotoBase64 = canvas.toDataURL('image/jpeg', 0.75);
+        datosChecada.facialDescriptorJson = window.MSTVFacial.descriptorJson(facial.descriptor);
+        datosChecada.facialDescriptorModel = facial.model;
+        datosChecada.facialDetectionScore = facial.score;
+
+        if (streamGlobal) {
+            streamGlobal.getTracks().forEach((track) => track.stop());
+            streamGlobal = null;
+        }
+
+        document.getElementById('btn-capturar').style.display = 'none';
+        document.getElementById('scanner').style.display = 'block';
+        actualizarFacialStatus('Rostro validado. Puedes guardar el registro.', 'info');
+
+        setTimeout(() => {
+            document.getElementById('paso-facial').style.display = 'none';
+            document.getElementById('paso-comentario').style.display = 'block';
+        }, 700);
+    } catch (error) {
+        actualizarFacialStatus(error.message || 'No se pudo validar el rostro.', 'error');
+        btn.disabled = false;
     }
-
-    document.getElementById('btn-capturar').style.display = 'none';
-    document.getElementById('scanner').style.display = 'block';
-    document.getElementById('facial-status').style.display = 'block';
-
-    setTimeout(() => {
-        document.getElementById('paso-facial').style.display = 'none';
-        document.getElementById('paso-comentario').style.display = 'block';
-    }, 700);
 }
 
 async function finalizarChecada() {
@@ -735,6 +834,9 @@ async function finalizarChecada() {
     formData.append('longitud', datosChecada.longitud);
     formData.append('esta_dentro_geocerca', datosChecada.dentro_geocerca);
     formData.append('fotoBase64', datosChecada.fotoBase64);
+    formData.append('facial_descriptor_json', datosChecada.facialDescriptorJson);
+    formData.append('facial_descriptor_model', datosChecada.facialDescriptorModel);
+    formData.append('facial_detection_score', datosChecada.facialDetectionScore);
     formData.append('comentarios', document.getElementById('checada-comentario').value.trim());
 
     try {
@@ -750,7 +852,15 @@ async function finalizarChecada() {
 
         let detalle = `${data.message}\nEstado: ${data.estado}`;
         if (typeof data.puntaje_facial === 'number') {
-            detalle += `\nScore foto: ${data.puntaje_facial}%`;
+            detalle += `\nScore facial: ${data.puntaje_facial}%`;
+        }
+        if (typeof data.distancia_facial === 'number') {
+            detalle += `\nDistancia facial: ${data.distancia_facial}`;
+        }
+        if (data.estado === 'RECHAZADO_ROSTRO') {
+            detalle = 'El rostro no coincide con el enrolamiento registrado.\nEstado: RECHAZADO ROSTRO';
+        } else if (data.estado === 'PENDIENTE_REVISION') {
+            detalle = 'Registro guardado para revisión. Falta enrolamiento facial válido o requiere validación manual.\nEstado: PENDIENTE REVISION';
         }
         alert(detalle);
 

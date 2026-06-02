@@ -55,6 +55,39 @@ function app_store_base_photo(array $file, int $personalId): array
     ];
 }
 
+function personal_facial_descriptor_parse($value): ?array
+{
+    $value = trim((string)$value);
+    if ($value === '') {
+        return null;
+    }
+
+    $decoded = json_decode($value, true);
+    if (isset($decoded['descriptor']) && is_array($decoded['descriptor'])) {
+        $decoded = $decoded['descriptor'];
+    }
+
+    if (!is_array($decoded) || count($decoded) !== 128) {
+        return null;
+    }
+
+    $descriptor = [];
+    foreach ($decoded as $item) {
+        if (!is_numeric($item)) {
+            return null;
+        }
+
+        $value = (float)$item;
+        if (!is_finite($value)) {
+            return null;
+        }
+
+        $descriptor[] = $value;
+    }
+
+    return $descriptor;
+}
+
 function personal_clean_date_field(string $key): ?string
 {
     $value = app_clean_text(app_post($key, ''));
@@ -210,9 +243,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($accion === 'actualizar_foto_base') {
         $file = $_FILES['foto_base'] ?? null;
+        $facialDescriptor = personal_facial_descriptor_parse(app_post('facial_descriptor_json', ''));
+        $facialDescriptorModel = app_clean_text(app_post('facial_descriptor_model', ''));
+        if ($facialDescriptorModel === '') {
+            $facialDescriptorModel = app_config($configs, 'facial_modelo', 'face-api.js-faceRecognitionNet');
+        }
 
         if (!$file) {
             $messages['error'] = 'Selecciona una imagen para la foto base.';
+        } elseif ($facialDescriptor === null) {
+            $messages['error'] = 'La foto base debe contener exactamente un rostro detectable antes de guardarse.';
         } else {
             $upload = app_store_base_photo($file, $personalId);
 
@@ -221,21 +261,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $newPath = (string)$upload['relative_path'];
                 $previousPath = trim((string)($personal['url_foto_base'] ?? ''));
+                $descriptorJson = json_encode($facialDescriptor, JSON_UNESCAPED_SLASHES);
 
-                $sql = "UPDATE personal SET url_foto_base = ? WHERE id = ? LIMIT 1";
+                $sql = "
+                    UPDATE personal
+                    SET url_foto_base = ?,
+                        facial_descriptor_json = ?,
+                        facial_descriptor_model = ?,
+                        facial_descriptor_updated_at = NOW()
+                    WHERE id = ?
+                    LIMIT 1
+                ";
                 if ($stmt = mysqli_prepare($conexion, $sql)) {
-                    mysqli_stmt_bind_param($stmt, 'si', $newPath, $personalId);
-                    mysqli_stmt_execute($stmt);
+                    mysqli_stmt_bind_param($stmt, 'sssi', $newPath, $descriptorJson, $facialDescriptorModel, $personalId);
+                    $updated = mysqli_stmt_execute($stmt);
                     mysqli_stmt_close($stmt);
 
-                    if ($previousPath !== '' && strpos($previousPath, 'uploads/personal/base/') === 0) {
-                        $previousAbsolute = __DIR__ . '/' . $previousPath;
-                        if (is_file($previousAbsolute)) {
-                            @unlink($previousAbsolute);
+                    if (!$updated) {
+                        @unlink($upload['path']);
+                        $messages['error'] = 'No fue posible guardar la ruta y el descriptor de la foto base.';
+                    } else {
+                        if ($previousPath !== '' && strpos($previousPath, 'uploads/personal/base/') === 0) {
+                            $previousAbsolute = __DIR__ . '/' . $previousPath;
+                            if (is_file($previousAbsolute)) {
+                                @unlink($previousAbsolute);
+                            }
                         }
-                    }
 
-                    $messages['success'] = 'Foto base actualizada correctamente.';
+                        $personal['url_foto_base'] = $newPath;
+                        $personal['facial_descriptor_json'] = $descriptorJson;
+                        $personal['facial_descriptor_model'] = $facialDescriptorModel;
+                        $personal['facial_descriptor_updated_at'] = date('Y-m-d H:i:s');
+                        $messages['success'] = 'Foto base actualizada correctamente.';
+                    }
                 } else {
                     @unlink($upload['path']);
                     $messages['error'] = 'No fue posible guardar la ruta de la foto base.';
@@ -719,12 +777,18 @@ app_render_alerts($messages);
                         <?php endif; ?>
                     </div>
                     <div class="col-md-8">
-                        <form method="post" enctype="multipart/form-data">
+                        <form method="post" enctype="multipart/form-data" id="foto-base-form">
                             <input type="hidden" name="accion" value="actualizar_foto_base">
+                            <input type="hidden" name="facial_descriptor_json" id="foto-base-descriptor">
+                            <input type="hidden" name="facial_descriptor_model" id="foto-base-modelo">
+                            <input type="hidden" name="facial_detection_score" id="foto-base-score">
                             <div class="mb-3">
                                 <label class="form-label">Cargar o reemplazar foto base</label>
-                                <input type="file" name="foto_base" class="form-control" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" required>
-                                <small class="text-muted">Esta imagen se usará como referencia para comparar la selfie registrada desde la app.</small>
+                                <input type="file" name="foto_base" id="foto-base-input" class="form-control" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" required>
+                                <small class="text-muted">Esta imagen debe contener exactamente un rostro y se usará como referencia para comparar la selfie registrada desde la app.</small>
+                            </div>
+                            <div id="foto-base-facial-status" class="small text-muted mb-3">
+                                <?php echo !empty($personal['facial_descriptor_json']) ? 'Rostro enrolado para comparación facial.' : 'Pendiente de enrolamiento facial.'; ?>
                             </div>
                             <button type="submit" class="btn btn-outline-primary">Guardar foto base</button>
                         </form>
@@ -1627,8 +1691,112 @@ app_render_alerts($messages);
     </div>
 </div>
 
+<script src="../app/assets/face-api/face-api.min.js"></script>
+<script src="../app/assets/js/facial-recognition.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    if (window.MSTVFacial) {
+        window.MSTVFacial.configure({
+            modelUri: '../app/assets/face-api/models',
+            minDetectionScore: 0.55,
+            inputSize: 320
+        });
+    }
+
+    const fotoBaseForm = document.getElementById('foto-base-form');
+    const fotoBaseInput = document.getElementById('foto-base-input');
+    const fotoBaseDescriptor = document.getElementById('foto-base-descriptor');
+    const fotoBaseModelo = document.getElementById('foto-base-modelo');
+    const fotoBaseScore = document.getElementById('foto-base-score');
+    const fotoBaseStatus = document.getElementById('foto-base-facial-status');
+    let fotoBaseAnalisis = null;
+
+    function setFotoBaseStatus(message, type) {
+        if (!fotoBaseStatus) {
+            return;
+        }
+
+        fotoBaseStatus.textContent = message;
+        fotoBaseStatus.className = 'small mb-3 ' + (type === 'error' ? 'text-danger' : (type === 'ok' ? 'text-success' : 'text-muted'));
+    }
+
+    async function analizarFotoBaseSeleccionada() {
+        if (!fotoBaseInput || !fotoBaseInput.files || !fotoBaseInput.files[0]) {
+            throw new Error('Selecciona una imagen para la foto base.');
+        }
+
+        if (!window.MSTVFacial) {
+            throw new Error('No se pudo cargar la libreria de reconocimiento facial.');
+        }
+
+        setFotoBaseStatus('Analizando rostro en la foto base...', 'info');
+        const resultado = await window.MSTVFacial.analyzeFile(fotoBaseInput.files[0]);
+
+        if (!resultado.ok) {
+            throw new Error(resultado.message || 'La foto base no tiene un rostro valido.');
+        }
+
+        fotoBaseDescriptor.value = window.MSTVFacial.descriptorJson(resultado.descriptor);
+        fotoBaseModelo.value = resultado.model;
+        fotoBaseScore.value = resultado.score;
+        setFotoBaseStatus('Rostro detectado. La foto base esta lista para guardarse.', 'ok');
+
+        return resultado;
+    }
+
+    if (fotoBaseInput) {
+        fotoBaseInput.addEventListener('change', function () {
+            if (fotoBaseForm) {
+                fotoBaseForm.dataset.facialReady = '';
+            }
+            if (fotoBaseDescriptor) {
+                fotoBaseDescriptor.value = '';
+            }
+            if (fotoBaseModelo) {
+                fotoBaseModelo.value = '';
+            }
+            if (fotoBaseScore) {
+                fotoBaseScore.value = '';
+            }
+
+            if (!fotoBaseInput.files || !fotoBaseInput.files[0]) {
+                setFotoBaseStatus('Pendiente de enrolamiento facial.', 'info');
+                fotoBaseAnalisis = null;
+                return;
+            }
+
+            fotoBaseAnalisis = analizarFotoBaseSeleccionada().catch(function (error) {
+                setFotoBaseStatus(error.message || 'No se pudo analizar la foto base.', 'error');
+                fotoBaseAnalisis = null;
+                throw error;
+            });
+            fotoBaseAnalisis.catch(function () {});
+        });
+    }
+
+    if (fotoBaseForm) {
+        fotoBaseForm.addEventListener('submit', async function (event) {
+            if (fotoBaseForm.dataset.facialReady === '1') {
+                return;
+            }
+
+            event.preventDefault();
+
+            try {
+                if (fotoBaseAnalisis) {
+                    await fotoBaseAnalisis;
+                } else {
+                    await analizarFotoBaseSeleccionada();
+                }
+
+                fotoBaseForm.dataset.facialReady = '1';
+                fotoBaseForm.submit();
+            } catch (error) {
+                setFotoBaseStatus(error.message || 'No se pudo validar la foto base.', 'error');
+            }
+        });
+    }
+
     const tipo = document.getElementById('tipo_vacacion');
     const inicio = document.getElementById('fecha_inicio_vacacion');
     const fin = document.getElementById('fecha_fin_vacacion');

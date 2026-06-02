@@ -15,7 +15,7 @@ function app_ensure_schema_once(mysqli $conexion, int $ttlSeconds = 86400): void
         return;
     }
 
-    $schemaVersion = '2026-05-30-checkin-employee-number-search-v2';
+    $schemaVersion = '2026-06-02-facial-descriptor-v1';
     $marker = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR)
         . DIRECTORY_SEPARATOR
         . 'mstv_control_schema_' . sha1(__DIR__ . '|' . $schemaVersion) . '.ready';
@@ -28,8 +28,39 @@ function app_ensure_schema_once(mysqli $conexion, int $ttlSeconds = 86400): void
     @touch($marker);
 }
 
+function app_schema_column_exists(mysqli $conexion, string $table, string $column): bool
+{
+    $tableEscaped = mysqli_real_escape_string($conexion, $table);
+    $columnEscaped = mysqli_real_escape_string($conexion, $column);
+    $sql = "SHOW COLUMNS FROM `{$tableEscaped}` LIKE '{$columnEscaped}'";
+
+    if (!$result = @mysqli_query($conexion, $sql)) {
+        return false;
+    }
+
+    $exists = mysqli_num_rows($result) > 0;
+    mysqli_free_result($result);
+
+    return $exists;
+}
+
+function app_schema_add_column_if_missing(mysqli $conexion, string $table, string $column, string $definition): void
+{
+    if (app_schema_column_exists($conexion, $table, $column)) {
+        return;
+    }
+
+    $tableEscaped = str_replace('`', '``', $table);
+    $columnEscaped = str_replace('`', '``', $column);
+    @mysqli_query($conexion, "ALTER TABLE `{$tableEscaped}` ADD COLUMN `{$columnEscaped}` {$definition}");
+}
+
 function app_ensure_schema(mysqli $conexion): void
 {
+    app_schema_add_column_if_missing($conexion, 'personal', 'facial_descriptor_json', 'LONGTEXT NULL AFTER `url_foto_base`');
+    app_schema_add_column_if_missing($conexion, 'personal', 'facial_descriptor_model', "VARCHAR(80) NULL AFTER `facial_descriptor_json`");
+    app_schema_add_column_if_missing($conexion, 'personal', 'facial_descriptor_updated_at', 'DATETIME NULL AFTER `facial_descriptor_model`');
+
     $queries = [
         //"ALTER TABLE personal ADD COLUMN IF NOT EXISTS numero_empleado VARCHAR(30) NULL AFTER id",
         //"ALTER TABLE personal ADD COLUMN IF NOT EXISTS salario_diario DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER estado",
@@ -397,7 +428,9 @@ function app_ensure_schema(mysqli $conexion): void
         'turnos_tolerancia_minutos' => ['15', 'Minutos de tolerancia antes de generar retardo.'],
         'turnos_max_retardo_horas' => ['4', 'Máximo de horas de retardo antes de cancelar el turno.'],
         'checadas_minutos_anticipacion' => ['20', 'Minutos antes del inicio programado en los que se permite registrar entrada.'],
-        'facial_puntaje_minimo' => ['35', 'Puntaje facial mínimo para aceptar automáticamente una checada.'],
+        'facial_puntaje_minimo' => ['35', 'Puntaje facial heredado para reportes; la aceptación usa distancia facial.'],
+        'facial_distancia_maxima' => ['0.55', 'Distancia euclidiana máxima entre descriptores faciales para aceptar una checada.'],
+        'facial_modelo' => ['face-api.js-faceRecognitionNet', 'Modelo activo para generar descriptores faciales.'],
         'facial_selfie_min_width' => ['180', 'Ancho mínimo de selfie para validar evidencia facial.'],
         'facial_selfie_min_height' => ['180', 'Alto mínimo de selfie para validar evidencia facial.'],
         'nomina_valor_hora' => ['75', 'Valor operativo por hora para retardos y horas extra.'],
