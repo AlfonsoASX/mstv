@@ -5,9 +5,104 @@ require_once __DIR__ . '/lib/app.php';
 app_require_session();
 app_require_page_permission();
 
+$mensaje_error = '';
+$mensaje_exito = '';
+
 // Helpers
 function limpiar($txt) {
     return trim(htmlspecialchars($txt, ENT_QUOTES, 'UTF-8'));
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
+    if ($_POST['accion'] === 'aprobar_checada') {
+        $registro_id = isset($_POST['registro_id']) ? (int)$_POST['registro_id'] : 0;
+        if ($registro_id > 0) {
+            $sql_aprobar = "UPDATE registros_asistencia SET estado = 'ACEPTADO' WHERE id = ?";
+            if ($stmt_aprobar = mysqli_prepare($conexion, $sql_aprobar)) {
+                mysqli_stmt_bind_param($stmt_aprobar, 'i', $registro_id);
+                mysqli_stmt_execute($stmt_aprobar);
+                mysqli_stmt_close($stmt_aprobar);
+            }
+        }
+
+        $redirect_url = $_SERVER['PHP_SELF'];
+        if (!empty($_SERVER['QUERY_STRING'])) {
+            $redirect_url .= '?' . $_SERVER['QUERY_STRING'];
+        }
+        header('Location: ' . $redirect_url);
+        exit;
+    } elseif ($_POST['accion'] === 'registrar_salida') {
+    $registro_id = isset($_POST['registro_id']) ? (int)$_POST['registro_id'] : 0;
+    $fecha_salida = isset($_POST['fecha_salida']) ? trim($_POST['fecha_salida']) : '';
+
+    if ($registro_id <= 0) {
+        $mensaje_error = 'No se identificó el registro para registrar la salida.';
+    } elseif ($fecha_salida === '') {
+        $mensaje_error = 'Debes capturar la fecha y hora de salida.';
+    } else {
+        $fecha_dt = DateTime::createFromFormat('Y-m-d\TH:i', $fecha_salida);
+        if (!$fecha_dt) {
+            $mensaje_error = 'El formato de fecha/hora de salida no es válido.';
+        } else {
+            $fecha_hora = $fecha_dt->format('Y-m-d H:i:s');
+
+            $sql_sel = 'SELECT turno_id, personal_id, sitio_id FROM registros_asistencia WHERE id = ? LIMIT 1';
+            if ($stmt_sel = mysqli_prepare($conexion, $sql_sel)) {
+                mysqli_stmt_bind_param($stmt_sel, 'i', $registro_id);
+                mysqli_stmt_execute($stmt_sel);
+                mysqli_stmt_bind_result($stmt_sel, $turno_id, $personal_id, $sitio_id);
+                if (mysqli_stmt_fetch($stmt_sel)) {
+                    mysqli_stmt_close($stmt_sel);
+
+                    $sql_ins = "INSERT INTO registros_asistencia
+                        (turno_id, personal_id, sitio_id, tipo_evento, fecha_hora, latitud, longitud, esta_dentro_geocerca, url_selfie, puntaje_facial, verificado_vida, comentarios, estado)
+                        VALUES (NULLIF(?, 0), ?, ?, 'SALIDA', ?, 0, 0, 0, '', NULL, 0, 'Salida registrada desde el control', 'ACEPTADO')";
+
+                    if ($stmt_ins = mysqli_prepare($conexion, $sql_ins)) {
+                        mysqli_stmt_bind_param($stmt_ins, 'iiis', $turno_id, $personal_id, $sitio_id, $fecha_hora);
+                        if (mysqli_stmt_execute($stmt_ins)) {
+                            $registro_salida_id = mysqli_insert_id($conexion);
+                            mysqli_stmt_close($stmt_ins);
+
+                            if ($turno_id > 0) {
+                                $sql_upd = "UPDATE turnos SET estado = 'COMPLETADO', hora_salida_real = COALESCE(hora_salida_real, ?) WHERE id = ?";
+                                if ($stmt_upd = mysqli_prepare($conexion, $sql_upd)) {
+                                    mysqli_stmt_bind_param($stmt_upd, 'si', $fecha_hora, $turno_id);
+                                    mysqli_stmt_execute($stmt_upd);
+                                    mysqli_stmt_close($stmt_upd);
+                                }
+                            }
+
+                            $redirect_url = $_SERVER['PHP_SELF'];
+                            if (!empty($_SERVER['QUERY_STRING'])) {
+                                parse_str($_SERVER['QUERY_STRING'], $qs);
+                                $qs['salida_guardada'] = 1;
+                                $redirect_url .= '?' . http_build_query($qs);
+                            } else {
+                                $redirect_url .= '?salida_guardada=1';
+                            }
+                            header('Location: ' . $redirect_url);
+                            exit;
+                        }
+                        mysqli_stmt_close($stmt_ins);
+                        $mensaje_error = 'No fue posible guardar la salida.';
+                    } else {
+                        $mensaje_error = 'Error interno al preparar el registro de salida.';
+                    }
+                } else {
+                    mysqli_stmt_close($stmt_sel);
+                    $mensaje_error = 'No se encontró el registro de entrada asociado.';
+                }
+            } else {
+                $mensaje_error = 'Error interno al buscar el registro.';
+            }
+        }
+    }
+}
+}
+
+if (isset($_GET['salida_guardada'])) {
+    $mensaje_exito = 'La salida se registró correctamente.';
 }
 
 // =======================
@@ -519,12 +614,13 @@ function badgeEstado($estado) {
                                                     <th>Liveness</th>
                                                     <th>Comentario</th>
                                                     <th>Selfie</th>
+                                                    <th>Acciones</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 <?php if (empty($checadas)): ?>
                                                     <tr>
-                                                        <td colspan="13" class="text-center text-muted py-3">
+                                                        <td colspan="14" class="text-center text-muted py-3">
                                                             No se encontraron checadas con los filtros actuales.
                                                         </td>
                                                     </tr>
@@ -612,12 +708,47 @@ function badgeEstado($estado) {
                                                                     <span class="text-muted">Sin foto</span>
                                                                 <?php endif; ?>
                                                             </td>
+                                                            <td>
+                                                                <?php if (strtoupper($c['estado']) !== 'ACEPTADO'): ?>
+                                                                    <form method="post" action="checadas-lista.php" style="display:inline;">
+                                                                        <input type="hidden" name="accion" value="aprobar_checada">
+                                                                        <input type="hidden" name="registro_id" value="<?php echo (int)$c['id']; ?>">
+                                                                        <button type="submit" class="btn btn-sm btn-success">
+                                                                            Aprobar
+                                                                        </button>
+                                                                    </form>
+                                                                <?php else: ?>
+                                                                    <?php if (empty($c['hora_real_salida'])): ?>
+                                                                        <button type="button"
+                                                                                class="btn btn-sm btn-warning"
+                                                                                data-bs-toggle="modal"
+                                                                                data-bs-target="#modalRegistrarSalida"
+                                                                                data-registro-id="<?php echo (int)$c['id']; ?>"
+                                                                                data-tipo-evento="SALIDA"
+                                                                                >
+                                                                            Registrar Salida
+                                                                        </button>
+                                                                    <?php else: ?>
+                                                                        <span class="text-muted small">-</span>
+                                                                    <?php endif; ?>
+                                                                <?php endif; ?>
+                                                            </td>
                                                         </tr>
                                                     <?php endforeach; ?>
                                                 <?php endif; ?>
                                             </tbody>
                                         </table>
                                     </div>
+
+                                    <?php if ($mensaje_error): ?>
+                                        <div class="alert alert-danger mt-3" role="alert">
+                                            <?php echo app_h($mensaje_error); ?>
+                                        </div>
+                                    <?php elseif ($mensaje_exito): ?>
+                                        <div class="alert alert-success mt-3" role="alert">
+                                            <?php echo app_h($mensaje_exito); ?>
+                                        </div>
+                                    <?php endif; ?>
 
                                     <!-- PAGINACIÓN -->
                                     <?php if ($total_paginas > 1): ?>
@@ -675,11 +806,63 @@ function badgeEstado($estado) {
 
     </div>
 
+    <div class="modal fade" id="modalRegistrarSalida" tabindex="-1" aria-labelledby="modalRegistrarSalidaLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form method="post" action="checadas-lista.php" id="formRegistrarSalida">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalRegistrarSalidaLabel">Registrar salida</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="accion" value="registrar_salida">
+                        <input type="hidden" name="registro_id" id="registroSalidaId" value="0">
+
+                        <div class="mb-3">
+                            <label for="fechaSalida" class="form-label">Fecha y hora de salida</label>
+                            <input type="datetime-local" class="form-control" id="fechaSalida" name="fecha_salida" required>
+                            <div class="form-text">Captura la fecha y hora exacta de la salida.</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar salida</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- SCRIPTS -->
     <script src="../src/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script src="../src/plugins/src/perfect-scrollbar/perfect-scrollbar.min.js"></script>
     <script src="../src/plugins/src/mousetrap/mousetrap.min.js"></script>
     <script src="../src/plugins/src/waves/waves.min.js"></script>
     <script src="../layouts/vertical-light-menu/app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var modalSalida = document.getElementById('modalRegistrarSalida');
+            if (modalSalida) {
+                modalSalida.addEventListener('show.bs.modal', function (event) {
+                    var button = event.relatedTarget;
+                    if (!button) {
+                        return;
+                    }
+                    var registroId = button.getAttribute('data-registro-id');
+                    var fechaSalidaInput = document.getElementById('fechaSalida');
+                    var registroSalidaId = document.getElementById('registroSalidaId');
+
+                    registroSalidaId.value = registroId || '0';
+
+                    var now = new Date();
+                    var local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+                    var iso = local.toISOString().slice(0, 16);
+                    if (fechaSalidaInput) {
+                        fechaSalidaInput.value = iso;
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>

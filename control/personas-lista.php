@@ -328,6 +328,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     mysqli_stmt_execute($stmtPersonal);
                     mysqli_stmt_close($stmtPersonal);
 
+                    // MCCA - Cancelar turnos futuros si el estado del personal es INACTIVO
+                    if ($estado === 'INACTIVO') {
+                        $sql_cancel_futuros = "
+                            UPDATE turnos
+                            SET estado = 'CANCELADO'
+                            WHERE personal_id = ?
+                              AND estado <> 'CANCELADO'
+                              AND hora_inicio > NOW()
+                        ";
+                        if ($stmtCancel = mysqli_prepare($conexion, $sql_cancel_futuros)) {
+                            mysqli_stmt_bind_param($stmtCancel, 'i', $personalId);
+                            mysqli_stmt_execute($stmtCancel);
+                            mysqli_stmt_close($stmtCancel);
+                        }
+                    }
+
                     mysqli_commit($conexion);
                     app_log_system($conexion, (int)($_SESSION['usuario_id'] ?? 0), 'PERSONAL_EDITA', 'personal', $personalId, [
                         'usuario_id' => $usuarioId,

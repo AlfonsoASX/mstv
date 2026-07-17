@@ -59,6 +59,39 @@ function limpiar_txt($txt) {
     return trim(htmlspecialchars($txt, ENT_QUOTES, 'UTF-8'));
 }
 
+
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['accion'] === 'cancelar_turno') {
+    $turno_id = isset($_POST['turno_id']) ? (int)$_POST['turno_id'] : 0;
+
+    if ($turno_id <= 0) {
+        $mensaje_error = 'No se identificó el turno a eliminar.';
+    } else {
+        // Ahora eliminamos el turno en lugar de actualizar su estado
+      //  $sql_delete = "DELETE FROM turnos WHERE id = ? AND estado = 'PROGRAMADO' ";
+        $sql_delete = "UPDATE turnos SET estado = 'CANCELADO' WHERE id = ? AND estado = 'PROGRAMADO' ";
+        
+        if ($stmt_delete = mysqli_prepare($conexion, $sql_delete)) {
+            mysqli_stmt_bind_param($stmt_delete, 'i', $turno_id);
+
+            if (mysqli_stmt_execute($stmt_delete)) {
+                if (mysqli_stmt_affected_rows($stmt_delete) > 0) {
+                    $mensaje_ok = 'Turno cancelado correctamente.';
+                } else {
+                    $mensaje_error = 'El turno no se pudo cancelar (debe tener estatus programado).';
+                }
+            } else {
+                $mensaje_error = 'Error al cancelar el turno: ' . mysqli_error($conexion);
+            }
+
+            mysqli_stmt_close($stmt_delete);
+        } else {
+            $mensaje_error = 'No se pudo preparar la consulta de eliminación.';
+        }
+    }
+}
+
+
 $dias_semana_recurrente = [
     1 => 'Lunes',
     2 => 'Martes',
@@ -286,8 +319,9 @@ $sql_turnos = "
     INNER JOIN sitios s   ON s.id = t.sitio_id
     INNER JOIN personal p ON p.id = t.personal_id
 ";
+$sql_turnos .= " WHERE DATE(t.hora_inicio) >= CURDATE() AND t.estado NOT IN ('CANCELADO') ";
 if ($filtro_sitio_id > 0) {
-    $sql_turnos .= " WHERE t.sitio_id = " . (int)$filtro_sitio_id . " ";
+    $sql_turnos .= " AND t.sitio_id = " . (int)$filtro_sitio_id . " ";
 }
 $sql_turnos .= " ORDER BY t.hora_inicio DESC LIMIT 50";
 
@@ -631,6 +665,7 @@ if ($res_t = mysqli_query($conexion, $sql_turnos)) {
                                                     <th>Fin</th>
                                                     <th>Tipo</th>
                                                     <th>Estado</th>
+                                                    <th>Acciones</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -674,10 +709,24 @@ if ($res_t = mysqli_query($conexion, $sql_turnos)) {
                                                                 if ($estado === 'EN_PROGRESO') $clase = 'bg-success';
                                                                 elseif ($estado === 'COMPLETADO') $clase = 'bg-primary';
                                                                 elseif ($estado === 'AUSENTE') $clase = 'bg-danger';
+                                                                elseif ($estado === 'CANCELADO') $clase = 'bg-warning';
                                                                 ?>
                                                                 <span class="badge <?php echo $clase; ?>">
                                                                     <?php echo htmlspecialchars($estado); ?>
                                                                 </span>
+                                                            </td>
+                                                            <td>
+                                                                <?php if ($t['estado'] === 'PROGRAMADO'): ?>
+                                                                    <form method="post" action="turnos-asignacion.php" style="display:inline;">
+                                                                        <input type="hidden" name="accion" value="cancelar_turno">
+                                                                        <input type="hidden" name="turno_id" value="<?php echo (int)$t['id']; ?>">
+                                                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Deseas cancelar este turno?');">
+                                                                            Cancelar
+                                                                        </button>
+                                                                    </form>
+                                                                <?php else: ?>
+                                                                    <span class="text-muted small">-</span>
+                                                                <?php endif; ?>
                                                             </td>
                                                         </tr>
                                                     <?php endforeach; ?>
