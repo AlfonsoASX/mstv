@@ -369,6 +369,13 @@
     <div id="checada-modal">
         <h2 id="modal-title">Registro</h2>
 
+        <div id="paso-sitio" style="display:none; width:100%;">
+            <i class="fa-solid fa-map-location-dot" style="font-size:48px; color:var(--primary-color); margin-bottom:16px;"></i>
+            <p>Selecciona el sitio donde estás registrando la checada.</p>
+            <select id="select-sitio-checada"></select>
+            <button class="btn-primary" id="btn-continuar-sitio" onclick="continuarTrasSeleccionSitio()">Continuar</button>
+        </div>
+
         <div id="paso-gps">
             <i class="fa-solid fa-satellite-dish" style="font-size:50px; color:var(--primary-color); margin-bottom:18px;"></i>
             <p id="gps-status-text">Obteniendo ubicación GPS...</p>
@@ -406,6 +413,8 @@ let tipoChecadaActual = '';
 let streamGlobal = null;
 let activeScreen = 'dashboard';
 let chatPollInterval = null;
+let sitioChecadaSeleccionado = null;
+let sitiosChecada = [];
 let datosChecada = {
     latitud: 0,
     longitud: 0,
@@ -541,6 +550,8 @@ async function cargarDashboard() {
         const response = await fetch(`${API_URL}?action=dashboard&personal_id=${currentUser.personal_id}`);
         const data = await response.json();
 
+        const esSupervisor = (currentUser?.rol_nombre || '').toUpperCase().includes('SUPERVISOR');
+
         if (data.status === 'success' && data.turno) {
             currentTurno = data.turno;
             document.getElementById('dash-sitio').innerText = currentTurno.sitio_nombre;
@@ -549,23 +560,36 @@ async function cargarDashboard() {
             document.getElementById('dash-salida-programada').innerText = formatDateTime(currentTurno.hora_programada_salida || currentTurno.hora_fin, true);
             document.getElementById('dash-salida-real').innerText = formatDateTime(currentTurno.hora_real_salida);
             document.getElementById('dash-ultimo-evento').innerText = currentTurno.ultimo_evento || 'Sin registros';
-            const puedeEntrada = currentTurno.puede_registrar_entrada !== false;
+            const turnoSinAsignar = esSupervisor && (!currentTurno.turno_id || currentTurno.turno_id === 0);
+            const puedeEntrada = currentTurno.puede_registrar_entrada !== false || turnoSinAsignar;
             document.getElementById('btn-entrada').disabled = !puedeEntrada && (currentTurno.siguiente_evento_sugerido || 'ENTRADA') === 'ENTRADA';
-            document.getElementById('btn-salida').disabled = (currentTurno.siguiente_evento_sugerido || 'ENTRADA') !== 'SALIDA';
-            document.getElementById('dash-turno-sugerido').innerText = puedeEntrada
-                ? `Siguiente registro sugerido: ${currentTurno.siguiente_evento_sugerido || 'ENTRADA'}`
-                : `Podrás registrar entrada desde ${formatDateTime(currentTurno.puede_checar_desde)}`;
+            document.getElementById('btn-salida').disabled = !turnoSinAsignar && (currentTurno.siguiente_evento_sugerido || 'ENTRADA') !== 'SALIDA';
+            document.getElementById('dash-turno-sugerido').innerText = turnoSinAsignar
+                ? 'Registro permitido sin turno asignado'
+                : (puedeEntrada
+                    ? `Siguiente registro sugerido: ${currentTurno.siguiente_evento_sugerido || 'ENTRADA'}`
+                    : `Podrás registrar entrada desde ${formatDateTime(currentTurno.puede_checar_desde)}`);
         } else {
-            currentTurno = null;
+            currentTurno = esSupervisor ? {
+                turno_id: 0,
+                sitio_id: 0,
+                sitio_nombre: 'Sin turno asignado',
+                hora_inicio: null,
+                hora_fin: null,
+                latitud: null,
+                longitud: null,
+                radio_geocerca: 0,
+                estado: 'SIN_TURNO'
+            } : null;
             document.getElementById('dash-sitio').innerText = 'Sin turno asignado';
             document.getElementById('dash-entrada-programada').innerText = '--:--';
             document.getElementById('dash-entrada-real').innerText = 'Sin registrar';
             document.getElementById('dash-salida-programada').innerText = '--:--';
             document.getElementById('dash-salida-real').innerText = 'Sin registrar';
             document.getElementById('dash-ultimo-evento').innerText = 'No disponible';
-            document.getElementById('dash-turno-sugerido').innerText = data.message || 'No hay turnos disponibles';
-            document.getElementById('btn-entrada').disabled = true;
-            document.getElementById('btn-salida').disabled = true;
+            document.getElementById('dash-turno-sugerido').innerText = esSupervisor ? 'Registro permitido sin turno asignado' : (data.message || 'No hay turnos disponibles');
+            document.getElementById('btn-entrada').disabled = !esSupervisor;
+            document.getElementById('btn-salida').disabled = !esSupervisor;
         }
 
         if (currentUser.facial_descriptor_registrado) {
@@ -627,12 +651,16 @@ async function cargarBitacora() {
 }
 
 function iniciarChecada(tipo) {
-    if (!currentTurno) {
+    const esSupervisor = (currentUser?.rol_nombre || '').toUpperCase().includes('SUPERVISOR');
+    const requiereSeleccionSitio = esSupervisor && (tipo === 'SALIDA' || !currentTurno || !currentTurno.turno_id || currentTurno.turno_id === 0);
+
+    if (!currentTurno && !esSupervisor) {
         alert('No tienes un turno asignado actualmente.');
         return;
     }
 
     tipoChecadaActual = tipo;
+    sitioChecadaSeleccionado = null;
     datosChecada = {
         latitud: 0,
         longitud: 0,
@@ -644,6 +672,7 @@ function iniciarChecada(tipo) {
     };
 
     document.getElementById('modal-title').innerText = tipo === 'ENTRADA' ? 'Registro de entrada' : 'Registro de salida';
+    document.getElementById('paso-sitio').style.display = 'none';
     document.getElementById('paso-gps').style.display = 'block';
     document.getElementById('paso-facial').style.display = 'none';
     document.getElementById('paso-comentario').style.display = 'none';
@@ -654,6 +683,54 @@ function iniciarChecada(tipo) {
     document.getElementById('checada-comentario').value = '';
     document.getElementById('checada-modal').style.display = 'flex';
 
+    if (requiereSeleccionSitio) {
+        mostrarPasoSeleccionSitio();
+        return;
+    }
+
+    obtenerUbicacion();
+}
+
+async function mostrarPasoSeleccionSitio() {
+    document.getElementById('paso-gps').style.display = 'none';
+    document.getElementById('paso-facial').style.display = 'none';
+    document.getElementById('paso-comentario').style.display = 'none';
+    document.getElementById('paso-sitio').style.display = 'block';
+
+    const select = document.getElementById('select-sitio-checada');
+    select.innerHTML = '<option value="">Cargando sitios...</option>';
+
+    try {
+        const response = await fetch(`${API_URL}?action=sitios`);
+        const data = await response.json();
+        if (data.status === 'success' && Array.isArray(data.sitios)) {
+            sitiosChecada = data.sitios;
+            select.innerHTML = '<option value="">Selecciona un sitio</option>';
+            data.sitios.forEach((sitio) => {
+                const option = document.createElement('option');
+                option.value = sitio.id;
+                option.textContent = sitio.nombre;
+                select.appendChild(option);
+            });
+        } else {
+            select.innerHTML = '<option value="">No hay sitios disponibles</option>';
+        }
+    } catch (error) {
+        select.innerHTML = '<option value="">No fue posible cargar los sitios</option>';
+    }
+}
+
+function continuarTrasSeleccionSitio() {
+    const select = document.getElementById('select-sitio-checada');
+    const sitioId = parseInt(select.value, 10);
+    if (!sitioId) {
+        alert('Selecciona un sitio para continuar.');
+        return;
+    }
+
+    sitioChecadaSeleccionado = sitiosChecada.find((sitio) => Number(sitio.id) === sitioId) || null;
+    document.getElementById('paso-sitio').style.display = 'none';
+    document.getElementById('paso-gps').style.display = 'block';
     obtenerUbicacion();
 }
 
@@ -669,15 +746,25 @@ function obtenerUbicacion() {
             datosChecada.latitud = position.coords.latitude;
             datosChecada.longitud = position.coords.longitude;
 
-            const distancia = calcularDistancia(
-                datosChecada.latitud,
-                datosChecada.longitud,
-                parseFloat(currentTurno.latitud),
-                parseFloat(currentTurno.longitud)
-            );
+            const esSupervisor = (currentUser?.rol_nombre || '').toUpperCase().includes('SUPERVISOR');
+            const sitioGeocerca = esSupervisor && sitioChecadaSeleccionado
+                ? sitioChecadaSeleccionado
+                : (currentTurno && currentTurno.turno_id ? currentTurno : null);
 
-            datosChecada.dentro_geocerca = distancia <= parseInt(currentTurno.radio_geocerca, 10) ? 1 : 0;
-            actualizarEstadoGeocerca(datosChecada.dentro_geocerca === 1);
+            if (!sitioGeocerca || !sitioGeocerca.latitud || !sitioGeocerca.longitud || !sitioGeocerca.radio_geocerca) {
+                datosChecada.dentro_geocerca = 1;
+                actualizarEstadoGeocerca(true);
+            } else {
+                const distancia = calcularDistancia(
+                    datosChecada.latitud,
+                    datosChecada.longitud,
+                    parseFloat(sitioGeocerca.latitud),
+                    parseFloat(sitioGeocerca.longitud)
+                );
+
+                datosChecada.dentro_geocerca = distancia <= parseInt(sitioGeocerca.radio_geocerca, 10) ? 1 : 0;
+                actualizarEstadoGeocerca(datosChecada.dentro_geocerca === 1);
+            }
 
             document.getElementById('paso-gps').style.display = 'none';
             document.getElementById('paso-facial').style.display = 'block';
@@ -827,8 +914,12 @@ async function finalizarChecada() {
     btn.textContent = 'Enviando...';
 
     const formData = new FormData();
+    const sitioId = (sitioChecadaSeleccionado && sitioChecadaSeleccionado.id)
+        ? sitioChecadaSeleccionado.id
+        : (currentTurno?.sitio_id || 0);
     formData.append('personal_id', currentUser.personal_id);
-    formData.append('turno_id', currentTurno.turno_id);
+    formData.append('turno_id', currentTurno?.turno_id || 0);
+    formData.append('sitio_id', sitioId);
     formData.append('tipo', tipoChecadaActual);
     formData.append('latitud', datosChecada.latitud);
     formData.append('longitud', datosChecada.longitud);

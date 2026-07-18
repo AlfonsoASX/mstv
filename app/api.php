@@ -102,9 +102,11 @@ function obtener_personal(mysqli $conexion, int $personalId): ?array
             p.facial_descriptor_model,
             p.estado,
             u.usuario,
-            u.esta_activo
+            u.esta_activo,
+            r.nombre AS rol_nombre
         FROM personal p
         INNER JOIN usuarios u ON u.id = p.usuario_id
+        LEFT JOIN roles r ON r.id = u.rol_id
         WHERE p.id = ?
         LIMIT 1
     ";
@@ -121,6 +123,68 @@ function obtener_personal(mysqli $conexion, int $personalId): ?array
     mysqli_stmt_close($stmt);
 
     return $row;
+}
+
+function es_rol_supervisor(?array $personal): bool
+{
+    if (!$personal) {
+        return false;
+    }
+
+    $rolNombre = strtoupper((string)($personal['rol_nombre'] ?? ''));
+    return $rolNombre === 'SUPERVISOR' || strpos($rolNombre, 'SUPERVISOR') !== false;
+}
+
+function obtener_sitio(mysqli $conexion, int $sitioId): ?array
+{
+    $sql = "
+        SELECT
+            id,
+            nombre,
+            latitud,
+            longitud,
+            radio_geocerca,
+            esta_activo
+        FROM sitios
+        WHERE id = ?
+        LIMIT 1
+    ";
+
+    if (!$stmt = mysqli_prepare($conexion, $sql)) {
+        return null;
+    }
+
+    mysqli_stmt_bind_param($stmt, 'i', $sitioId);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $row = mysqli_fetch_assoc($result) ?: null;
+    mysqli_free_result($result);
+    mysqli_stmt_close($stmt);
+
+    return $row;
+}
+
+function listar_sitios(mysqli $conexion): array
+{
+    $sql = "
+        SELECT id, nombre, latitud, longitud, radio_geocerca, esta_activo
+        FROM sitios
+        WHERE esta_activo = 1
+        ORDER BY nombre ASC
+    ";
+
+    $result = mysqli_query($conexion, $sql);
+    if (!$result) {
+        return [];
+    }
+
+    $sitios = [];
+    while ($row = mysqli_fetch_assoc($result)) {
+        $sitios[] = $row;
+    }
+
+    mysqli_free_result($result);
+    return $sitios;
 }
 
 function obtener_turno_actual(mysqli $conexion, int $personalId, ?int $turnoId = null): ?array
@@ -277,6 +341,30 @@ function obtener_ultimo_registro_turno(mysqli $conexion, int $turnoId, int $pers
     }
 
     mysqli_stmt_bind_param($stmt, 'ii', $turnoId, $personalId);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $row = mysqli_fetch_assoc($result) ?: null;
+    mysqli_free_result($result);
+    mysqli_stmt_close($stmt);
+
+    return $row;
+}
+
+function obtener_ultimo_registro_turno_supervisor(mysqli $conexion,  int $personalId): ?array
+{
+    $sql = "
+        SELECT id, tipo_evento, fecha_hora, estado
+        FROM registros_asistencia
+        WHERE  personal_id = ?
+        ORDER BY fecha_hora DESC, id DESC
+        LIMIT 1
+    ";
+
+    if (!$stmt = mysqli_prepare($conexion, $sql)) {
+        return null;
+    }
+
+    mysqli_stmt_bind_param($stmt, 'i', $personalId);
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
     $row = mysqli_fetch_assoc($result) ?: null;
@@ -501,6 +589,7 @@ switch ($action) {
         $sql = "
             SELECT
                 u.id AS usuario_id,
+                u.rol_id,
                 u.usuario,
                 u.contrasena_hash,
                 u.esta_activo,
@@ -508,9 +597,11 @@ switch ($action) {
                 p.nombres,
                 p.apellidos,
                 p.url_foto_base,
-                p.facial_descriptor_json
+                p.facial_descriptor_json,
+                r.nombre AS rol_nombre
             FROM usuarios u
             LEFT JOIN personal p ON p.usuario_id = u.id
+            LEFT JOIN roles r ON r.id = u.rol_id
             WHERE u.usuario = ?
             LIMIT 1
         ";
@@ -542,9 +633,11 @@ switch ($action) {
             'token' => base64_encode($fila['personal_id'] . '-' . time()),
             'user' => [
                 'usuario_id' => (int)$fila['usuario_id'],
+                'rol_id' => (int)($fila['rol_id'] ?? 0),
                 'personal_id' => (int)$fila['personal_id'],
                 'usuario' => (string)$fila['usuario'],
                 'nombre_completo' => trim($fila['nombres'] . ' ' . $fila['apellidos']),
+                'rol_nombre' => (string)($fila['rol_nombre'] ?? ''),
                 'foto_base_registrada' => trim((string)$fila['url_foto_base']) !== '',
                 'facial_descriptor_registrado' => facial_descriptor_parse($fila['facial_descriptor_json'] ?? null) !== null,
             ],
@@ -558,18 +651,41 @@ switch ($action) {
         }
 
         $anticipacionMinutos = app_config_int($configs, 'checadas_minutos_anticipacion', 20);
+        $personal = obtener_personal($conexion, $personalId);
+        $esSupervisor = es_rol_supervisor($personal);
         $turno = obtener_turno_actual($conexion, $personalId);
+
         if (!$turno) {
-            responder(404, 'error', 'No tienes turnos asignados para registrar entrada o salida.');
+            if ($esSupervisor) {
+                $turno = [
+                    'turno_id' => 0,
+                    'sitio_id' => 0,
+                    'hora_inicio' => null,
+                    'hora_fin' => null,
+                    'estado' => 'SIN_TURNO',
+                    'hora_entrada_real' => null,
+                    'hora_salida_real' => null,
+                    'sitio_nombre' => 'Sin turno asignado',
+                    'latitud' => null,
+                    'longitud' => null,
+                    'radio_geocerca' => 0,
+                ];
+            } else {
+                responder(404, 'error', 'No tienes turnos asignados para registrar entrada o salida.');
+            }
         }
 
-        $ultimoRegistro = obtener_ultimo_registro_turno($conexion, (int)$turno['turno_id'], $personalId);
+        $ultimoRegistro = (int)($turno['turno_id'] ?? 0) > 0 ? obtener_ultimo_registro_turno($conexion, (int)$turno['turno_id'], $personalId) : null;
         $turno = turno_horario_payload($conexion, $turno, $personalId, $anticipacionMinutos);
         $turno['ultimo_evento'] = $ultimoRegistro['tipo_evento'] ?? null;
-        $turno['siguiente_evento_sugerido'] = evento_siguiente($ultimoRegistro);
-        $turno['puede_registrar_entrada'] = entrada_en_ventana($turno, $anticipacionMinutos);
+        $turno['siguiente_evento_sugerido'] = $esSupervisor && ((int)($turno['turno_id'] ?? 0) === 0) ? 'ENTRADA' : evento_siguiente($ultimoRegistro);
+        $turno['puede_registrar_entrada'] = $esSupervisor && ((int)($turno['turno_id'] ?? 0) === 0) ? true : entrada_en_ventana($turno, $anticipacionMinutos);
 
         responder(200, 'success', 'Turno encontrado', ['turno' => $turno]);
+        break;
+
+    case 'sitios':
+        responder(200, 'success', 'Sitios cargados', ['sitios' => listar_sitios($conexion)]);
         break;
 
     case 'bitacora':
@@ -664,16 +780,66 @@ switch ($action) {
             responder(403, 'error', 'El colaborador no está habilitado para registrar checadas.');
         }
 
+        $esSupervisor = es_rol_supervisor($personal);
+        $sitioIdSeleccionado = isset($data['sitio_id']) ? (int)$data['sitio_id'] : 0;
         $turno = obtener_turno_actual($conexion, $personalId, $turnoId);
         if (!$turno) {
-            responder(409, 'error', 'No hay un turno asignado disponible para este registro.');
+            if ($esSupervisor) {
+                $turno = [
+                    'turno_id' => 0,
+                    'sitio_id' => 0,
+                    'hora_inicio' => null,
+                    'hora_fin' => null,
+                    'estado' => 'SIN_TURNO',
+                    'hora_entrada_real' => null,
+                    'hora_salida_real' => null,
+                    'sitio_nombre' => 'Sin turno asignado',
+                    'latitud' => null,
+                    'longitud' => null,
+                    'radio_geocerca' => 0,
+                ];
+            } else {
+                responder(409, 'error', 'No hay un turno asignado disponible para este registro.');
+            }
         }
 
-        $ultimoRegistro = obtener_ultimo_registro_turno($conexion, (int)$turno['turno_id'], $personalId);
-        $siguienteEsperado = evento_siguiente($ultimoRegistro);
+        // $siguienteEsperado = ((int)($turno['turno_id'] ?? 0) > 0) ? evento_siguiente($ultimoRegistro) : 'ENTRADA';
+        if ($esSupervisor) {
+            // Supervisores: siempre calcular el siguiente evento según el último registro
+            $ultimoRegistro = obtener_ultimo_registro_turno_supervisor($conexion, $personalId);
+            $siguienteEsperado = evento_siguiente($ultimoRegistro);
+
+        } else {
+            // Usuarios normales: aplicar la lógica original del turno
+            $ultimoRegistro = (int)($turno['turno_id'] ?? 0) > 0 ? obtener_ultimo_registro_turno($conexion, (int)$turno['turno_id'], $personalId) : null;
+            $siguienteEsperado = ((int)($turno['turno_id'] ?? 0) > 0)
+                ? evento_siguiente($ultimoRegistro)
+                : 'ENTRADA';
+        }
         $anticipacionMinutos = app_config_int($configs, 'checadas_minutos_anticipacion', 20);
 
-        if ($siguienteEsperado === 'ENTRADA' && !entrada_en_ventana($turno, $anticipacionMinutos)) {
+        $sitioRegistro = null;
+        if ($esSupervisor && $tipoEvento === 'SALIDA') {
+            if ($sitioIdSeleccionado > 0) {
+                $sitioRegistro = obtener_sitio($conexion, $sitioIdSeleccionado);
+                if (!$sitioRegistro) {
+                    responder(404, 'error', 'No se encontró el sitio seleccionado para la salida.');
+                }
+            } else {
+                responder(409, 'error', 'Debes seleccionar el sitio donde estás registrando la salida.');
+            }
+        } elseif ((int)($turno['turno_id'] ?? 0) > 0) {
+            $sitioRegistro = obtener_sitio($conexion, (int)$turno['sitio_id']);
+        } elseif ($esSupervisor && $sitioIdSeleccionado > 0) {
+            $sitioRegistro = obtener_sitio($conexion, $sitioIdSeleccionado);
+            if (!$sitioRegistro) {
+                responder(404, 'error', 'No se encontró el sitio seleccionado para la checada.');
+            }
+        } elseif ($esSupervisor) {
+            responder(409, 'error', 'Debes seleccionar el sitio donde estás registrando la checada.');
+        }
+
+        if ($siguienteEsperado === 'ENTRADA' && !$esSupervisor && !entrada_en_ventana($turno, $anticipacionMinutos)) {
             $puedeDesde = '';
             $tsInicio = strtotime((string)$turno['hora_inicio']);
             if ($tsInicio !== false) {
@@ -683,9 +849,18 @@ switch ($action) {
             responder(409, 'error', 'Todavía no puedes registrar entrada. Puedes checar desde ' . ($puedeDesde ?: $anticipacionMinutos . ' minutos antes del turno') . '.');
         }
 
-        if ($tipoEvento !== $siguienteEsperado) {
+        if (!$esSupervisor && $tipoEvento !== $siguienteEsperado) {
             if ($tipoEvento === 'SALIDA') {
                 responder(409, 'error', 'Primero debes registrar tu entrada del turno asignado.');
+            }
+
+            responder(409, 'error', 'La entrada de este turno ya fue registrada. Lo siguiente es la salida.');
+        }
+
+        
+        if ($esSupervisor && $tipoEvento !== $siguienteEsperado) {
+            if ($tipoEvento === 'SALIDA') {
+                responder(409, 'error', 'Primero debes registrar tu entrada.');
             }
 
             responder(409, 'error', 'La entrada de este turno ya fue registrada. Lo siguiente es la salida.');
@@ -694,6 +869,23 @@ switch ($action) {
         $selfie = guardar_selfie($personalId, $fotoBase64);
         if (!$selfie['ok']) {
             responder(400, 'error', $selfie['error'] ?? 'No se pudo procesar la selfie. Intenta de nuevo.');
+        }
+
+        $latitudSitio = isset($sitioRegistro['latitud']) && $sitioRegistro['latitud'] !== null ? (float)$sitioRegistro['latitud'] : null;
+        $longitudSitio = isset($sitioRegistro['longitud']) && $sitioRegistro['longitud'] !== null ? (float)$sitioRegistro['longitud'] : null;
+        $radioSitio = isset($sitioRegistro['radio_geocerca']) && $sitioRegistro['radio_geocerca'] !== null ? (float)$sitioRegistro['radio_geocerca'] : null;
+        if ($latitudSitio !== null && $longitudSitio !== null && $radioSitio !== null && $radioSitio > 0) {
+            $radioEarth = 6371e3;
+            $phi1 = deg2rad($latitud);
+            $phi2 = deg2rad($latitudSitio);
+            $dPhi = deg2rad($latitudSitio - $latitud);
+            $dLambda = deg2rad($longitudSitio - $longitud);
+            $a = sin($dPhi / 2) * sin($dPhi / 2) + cos($phi1) * cos($phi2) * sin($dLambda / 2) * sin($dLambda / 2);
+            $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+            $distancia = $radioEarth * $c;
+            $dentroGeocerca = $distancia <= $radioSitio ? 1 : 0;
+        } else {
+            $dentroGeocerca = 1;
         }
 
         $fotoBasePath = resolver_ruta_local_foto_base($personal['url_foto_base'] ?? null);
@@ -719,18 +911,35 @@ switch ($action) {
             $estado = 'RECHAZADO_ROSTRO';
         }
 
+        $sitioId = (int)($sitioRegistro['id'] ?? $turno['sitio_id'] ?? 0);
+        $turnoIdReal = (int)($turno['turno_id'] ?? 0);
+
+        if ($esSupervisor && $turnoIdReal <= 0) {
+            $estadoTurno = $tipoEvento === 'ENTRADA' ? 'EN_PROGRESO' : 'COMPLETADO';
+            $sqlCrearTurno = "
+                INSERT INTO turnos (sitio_id, personal_id, hora_inicio, hora_fin, estado)
+                VALUES (?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 8 HOUR), ?)
+            ";
+
+            if ($stmtCrearTurno = mysqli_prepare($conexion, $sqlCrearTurno)) {
+                mysqli_stmt_bind_param($stmtCrearTurno, 'iis', $sitioId, $personalId, $estadoTurno);
+                if (mysqli_stmt_execute($stmtCrearTurno)) {
+                    $turnoIdReal = (int)mysqli_insert_id($conexion);
+                }
+                mysqli_stmt_close($stmtCrearTurno);
+            }
+        }
+
         $sql = "
             INSERT INTO registros_asistencia
                 (turno_id, personal_id, sitio_id, tipo_evento, latitud, longitud, esta_dentro_geocerca, url_selfie, puntaje_facial, verificado_vida, comentarios, estado)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULLIF(?, -1), ?, ?, ?)
+            VALUES (NULLIF(?, 0), ?, ?, ?, ?, ?, ?, ?, NULLIF(?, -1), ?, ?, ?)
         ";
 
         if (!$stmt = mysqli_prepare($conexion, $sql)) {
             responder(500, 'error', 'No fue posible guardar el registro.');
         }
 
-        $sitioId = (int)$turno['sitio_id'];
-        $turnoIdReal = (int)$turno['turno_id'];
         $selfieUrl = (string)$selfie['url'];
         $puntajeSql = $puntajeFacial === null ? -1 : $puntajeFacial;
 
@@ -760,26 +969,28 @@ switch ($action) {
         $registroId = (int)mysqli_insert_id($conexion);
         mysqli_stmt_close($stmt);
 
-        if ($tipoEvento === 'ENTRADA') {
-            $sqlTurno = "
-                UPDATE turnos
-                SET estado = 'EN_PROGRESO',
-                    hora_entrada_real = COALESCE(hora_entrada_real, NOW())
-                WHERE id = ?
-            ";
-        } else {
-            $sqlTurno = "
-                UPDATE turnos
-                SET estado = 'COMPLETADO',
-                    hora_salida_real = COALESCE(hora_salida_real, NOW())
-                WHERE id = ?
-            ";
-        }
+        if ($turnoIdReal > 0) {
+            if ($tipoEvento === 'ENTRADA') {
+                $sqlTurno = "
+                    UPDATE turnos
+                    SET estado = 'EN_PROGRESO',
+                        hora_entrada_real = COALESCE(hora_entrada_real, NOW())
+                    WHERE id = ?
+                ";
+            } else {
+                $sqlTurno = "
+                    UPDATE turnos
+                    SET estado = 'COMPLETADO',
+                        hora_salida_real = COALESCE(hora_salida_real, NOW())
+                    WHERE id = ?
+                ";
+            }
 
-        if ($stmtTurno = mysqli_prepare($conexion, $sqlTurno)) {
-            mysqli_stmt_bind_param($stmtTurno, 'i', $turnoIdReal);
-            mysqli_stmt_execute($stmtTurno);
-            mysqli_stmt_close($stmtTurno);
+            if ($stmtTurno = mysqli_prepare($conexion, $sqlTurno)) {
+                mysqli_stmt_bind_param($stmtTurno, 'i', $turnoIdReal);
+                mysqli_stmt_execute($stmtTurno);
+                mysqli_stmt_close($stmtTurno);
+            }
         }
 
         app_log_system(
