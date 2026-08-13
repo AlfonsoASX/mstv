@@ -192,7 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['
                 $rango_fin->modify('sunday this week');
             }
 
-            $sql_dup = "SELECT id FROM turnos WHERE personal_id = ? AND hora_inicio = ? LIMIT 1";
+            $sql_dup = "SELECT id FROM turnos WHERE personal_id = ? AND hora_inicio = ? AND estado <> 'CANCELADO' LIMIT 1";
             $sql_ins = "
                 INSERT INTO turnos
                     (sitio_id, personal_id, supervisor_id, hora_inicio, hora_fin, es_turno_extra, estado)
