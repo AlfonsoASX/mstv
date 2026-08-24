@@ -32,77 +32,115 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
         header('Location: ' . $redirect_url);
         exit;
     } elseif ($_POST['accion'] === 'registrar_salida') {
-    $registro_id = isset($_POST['registro_id']) ? (int)$_POST['registro_id'] : 0;
-    $fecha_salida = isset($_POST['fecha_salida']) ? trim($_POST['fecha_salida']) : '';
+        $registro_id = isset($_POST['registro_id']) ? (int)$_POST['registro_id'] : 0;
+        $fecha_salida = isset($_POST['fecha_salida']) ? trim($_POST['fecha_salida']) : '';
 
-    if ($registro_id <= 0) {
-        $mensaje_error = 'No se identificó el registro para registrar la salida.';
-    } elseif ($fecha_salida === '') {
-        $mensaje_error = 'Debes capturar la fecha y hora de salida.';
-    } else {
-        $fecha_dt = DateTime::createFromFormat('Y-m-d\TH:i', $fecha_salida);
-        if (!$fecha_dt) {
-            $mensaje_error = 'El formato de fecha/hora de salida no es válido.';
+        if ($registro_id <= 0) {
+            $mensaje_error = 'No se identificó el registro para registrar la salida.';
+        } elseif ($fecha_salida === '') {
+            $mensaje_error = 'Debes capturar la fecha y hora de salida.';
         } else {
-            $fecha_hora = $fecha_dt->format('Y-m-d H:i:s');
+            $fecha_dt = DateTime::createFromFormat('Y-m-d\TH:i', $fecha_salida);
+            if (!$fecha_dt) {
+                $mensaje_error = 'El formato de fecha/hora de salida no es válido.';
+            } else {
+                $fecha_hora = $fecha_dt->format('Y-m-d H:i:s');
 
-            $sql_sel = 'SELECT turno_id, personal_id, sitio_id FROM registros_asistencia WHERE id = ? LIMIT 1';
-            if ($stmt_sel = mysqli_prepare($conexion, $sql_sel)) {
-                mysqli_stmt_bind_param($stmt_sel, 'i', $registro_id);
-                mysqli_stmt_execute($stmt_sel);
-                mysqli_stmt_bind_result($stmt_sel, $turno_id, $personal_id, $sitio_id);
-                if (mysqli_stmt_fetch($stmt_sel)) {
-                    mysqli_stmt_close($stmt_sel);
+                $sql_sel = 'SELECT turno_id, personal_id, sitio_id FROM registros_asistencia WHERE id = ? LIMIT 1';
+                if ($stmt_sel = mysqli_prepare($conexion, $sql_sel)) {
+                    mysqli_stmt_bind_param($stmt_sel, 'i', $registro_id);
+                    mysqli_stmt_execute($stmt_sel);
+                    mysqli_stmt_bind_result($stmt_sel, $turno_id, $personal_id, $sitio_id);
+                    if (mysqli_stmt_fetch($stmt_sel)) {
+                        mysqli_stmt_close($stmt_sel);
 
-                    $sql_ins = "INSERT INTO registros_asistencia
-                        (turno_id, personal_id, sitio_id, tipo_evento, fecha_hora, latitud, longitud, esta_dentro_geocerca, url_selfie, puntaje_facial, verificado_vida, comentarios, estado)
-                        VALUES (NULLIF(?, 0), ?, ?, 'SALIDA', ?, 0, 0, 0, '', NULL, 0, 'Salida registrada desde el control', 'ACEPTADO')";
+                        $sql_ins = "INSERT INTO registros_asistencia
+                            (turno_id, personal_id, sitio_id, tipo_evento, fecha_hora, latitud, longitud, esta_dentro_geocerca, url_selfie, puntaje_facial, verificado_vida, comentarios, estado)
+                            VALUES (NULLIF(?, 0), ?, ?, 'SALIDA', ?, 0, 0, 0, '', NULL, 0, 'Salida registrada desde el control', 'ACEPTADO')";
 
-                    if ($stmt_ins = mysqli_prepare($conexion, $sql_ins)) {
-                        mysqli_stmt_bind_param($stmt_ins, 'iiis', $turno_id, $personal_id, $sitio_id, $fecha_hora);
-                        if (mysqli_stmt_execute($stmt_ins)) {
-                            $registro_salida_id = mysqli_insert_id($conexion);
-                            mysqli_stmt_close($stmt_ins);
+                        if ($stmt_ins = mysqli_prepare($conexion, $sql_ins)) {
+                            mysqli_stmt_bind_param($stmt_ins, 'iiis', $turno_id, $personal_id, $sitio_id, $fecha_hora);
+                            if (mysqli_stmt_execute($stmt_ins)) {
+                                $registro_salida_id = mysqli_insert_id($conexion);
+                                mysqli_stmt_close($stmt_ins);
 
-                            if ($turno_id > 0) {
-                                $sql_upd = "UPDATE turnos SET estado = 'COMPLETADO', hora_salida_real = COALESCE(hora_salida_real, ?) WHERE id = ?";
-                                if ($stmt_upd = mysqli_prepare($conexion, $sql_upd)) {
-                                    mysqli_stmt_bind_param($stmt_upd, 'si', $fecha_hora, $turno_id);
-                                    mysqli_stmt_execute($stmt_upd);
-                                    mysqli_stmt_close($stmt_upd);
+                                if ($turno_id > 0) {
+                                    $sql_upd = "UPDATE turnos SET estado = 'COMPLETADO', hora_salida_real = COALESCE(hora_salida_real, ?) WHERE id = ?";
+                                    if ($stmt_upd = mysqli_prepare($conexion, $sql_upd)) {
+                                        mysqli_stmt_bind_param($stmt_upd, 'si', $fecha_hora, $turno_id);
+                                        mysqli_stmt_execute($stmt_upd);
+                                        mysqli_stmt_close($stmt_upd);
+                                    }
                                 }
-                            }
 
-                            $redirect_url = $_SERVER['PHP_SELF'];
-                            if (!empty($_SERVER['QUERY_STRING'])) {
-                                parse_str($_SERVER['QUERY_STRING'], $qs);
-                                $qs['salida_guardada'] = 1;
-                                $redirect_url .= '?' . http_build_query($qs);
-                            } else {
-                                $redirect_url .= '?salida_guardada=1';
+                                $redirect_url = $_SERVER['PHP_SELF'];
+                                if (!empty($_SERVER['QUERY_STRING'])) {
+                                    parse_str($_SERVER['QUERY_STRING'], $qs);
+                                    $qs['salida_guardada'] = 1;
+                                    $redirect_url .= '?' . http_build_query($qs);
+                                } else {
+                                    $redirect_url .= '?salida_guardada=1';
+                                }
+                                header('Location: ' . $redirect_url);
+                                exit;
                             }
-                            header('Location: ' . $redirect_url);
-                            exit;
+                            mysqli_stmt_close($stmt_ins);
+                            $mensaje_error = 'No fue posible guardar la salida.';
+                        } else {
+                            $mensaje_error = 'Error interno al preparar el registro de salida.';
                         }
-                        mysqli_stmt_close($stmt_ins);
-                        $mensaje_error = 'No fue posible guardar la salida.';
                     } else {
-                        $mensaje_error = 'Error interno al preparar el registro de salida.';
+                        mysqli_stmt_close($stmt_sel);
+                        $mensaje_error = 'No se encontró el registro de entrada asociado.';
                     }
                 } else {
-                    mysqli_stmt_close($stmt_sel);
-                    $mensaje_error = 'No se encontró el registro de entrada asociado.';
+                    $mensaje_error = 'Error interno al buscar el registro.';
                 }
-            } else {
-                $mensaje_error = 'Error interno al buscar el registro.';
             }
         }
+    }elseif ($_POST['accion'] === 'registrar_falta') {
+        $registro_id = isset($_POST['registro_id']) ? (int)$_POST['registro_id'] : 0;
+        $tipofalta = isset($_POST['tipo_falta']) ? trim($_POST['tipo_falta']) : '';
+
+            $mensaje_error = 'registro falta.';
+            echo 'TIPO FALTA: ' . $tipofalta ;
+             echo 'ID Turno: ' . $registro_id ;
+             if ($tipofalta == 'FALTAIN') {
+                $tipo_f = 'FALTA INJUSTIFICADA';
+            } else {
+                $tipo_f = 'FALTA JUSTIFICADA';
+            }
+
+        if ($registro_id > 0) {
+            $sql_falta = "UPDATE turnos SET estado = ? , observaciones_nomina =? WHERE id = ?";
+            if ($stmt_falta = mysqli_prepare($conexion, $sql_falta)) {
+                mysqli_stmt_bind_param($stmt_falta, 'ssi', $tipofalta,$tipo_f, $registro_id);
+                mysqli_stmt_execute($stmt_falta);
+                mysqli_stmt_close($stmt_falta);
+            }
+        }
+
+        
+        $redirect_url = $_SERVER['PHP_SELF'];
+        if (!empty($_SERVER['QUERY_STRING'])) {
+            parse_str($_SERVER['QUERY_STRING'], $qs);
+            $qs['falta_guardada'] = 1;
+            $redirect_url .= '?' . http_build_query($qs);
+        } else {
+            $redirect_url .= '?falta_guardada=1';
+        }
+        header('Location: ' . $redirect_url);
+        exit;
+        
     }
-}
 }
 
 if (isset($_GET['salida_guardada'])) {
     $mensaje_exito = 'La salida se registró correctamente.';
+}
+
+if (isset($_GET['falta_guardada'])) {
+    $mensaje_exito = 'La falta se registró correctamente.';
 }
 
 // =======================
@@ -148,7 +186,7 @@ $buscar      = isset($_GET['buscar']) ? limpiar($_GET['buscar']) : '';
 
 // Validaciones simples
 $tipos_validos   = ['ENTRADA','SALIDA'];
-$estados_validos = ['ACEPTADO','RECHAZADO_ROSTRO','RECHAZADO_GPS','PENDIENTE_REVISION'];
+$estados_validos = ['ACEPTADO','RECHAZADO_ROSTRO','RECHAZADO_GPS','PENDIENTE_REVISION','FALTA'];
 
 if (!in_array($tipo_evento, $tipos_validos)) {
     $tipo_evento = '';
@@ -160,7 +198,8 @@ if (!in_array($estado, $estados_validos)) {
 // =======================
 //  CONDICIONES SQL
 // =======================
-$cond = " WHERE 1=1 ";
+// $cond = " WHERE 1=1 ";
+$cond = " ";
 
 if ($sitio_id > 0) {
     $cond .= " AND ra.sitio_id = " . (int)$sitio_id . " ";
@@ -174,16 +213,16 @@ if ($tipo_evento !== '') {
 }
 if ($estado !== '') {
     $est_esc = mysqli_real_escape_string($conexion, $estado);
-    $cond .= " AND ra.estado = '$est_esc' ";
+    $cond .= " AND COALESCE(ra.estado, 'FALTA') = '$est_esc' ";
 }
 
 if ($fecha_desde !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha_desde)) {
     $fd_esc = mysqli_real_escape_string($conexion, $fecha_desde . " 00:00:00");
-    $cond .= " AND ra.fecha_hora >= '$fd_esc' ";
+    $cond .= " AND t.hora_inicio >= '$fd_esc' ";
 }
 if ($fecha_hasta !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha_hasta)) {
     $fh_esc = mysqli_real_escape_string($conexion, $fecha_hasta . " 23:59:59");
-    $cond .= " AND ra.fecha_hora <= '$fh_esc' ";
+    $cond .= " AND t.hora_inicio <= '$fh_esc' ";
 }
 if ($buscar !== '') {
     $buscarEsc = mysqli_real_escape_string($conexion, $buscar);
@@ -211,15 +250,21 @@ $offset     = ($pagina - 1) * $por_pagina;
 $total_registros   = 0;
 $total_aceptadas   = 0;
 $total_rechazadas  = 0;
+$total_pendientes  = 0;
+$total_faltas  = 0;
 
 $sql_resumen = "
     SELECT 
         COUNT(*) AS total,
         SUM(ra.estado = 'ACEPTADO') AS aceptadas,
-        SUM(ra.estado <> 'ACEPTADO') AS rechazadas
-    FROM registros_asistencia ra
-    INNER JOIN personal p ON p.id = ra.personal_id
-    INNER JOIN sitios s   ON s.id = ra.sitio_id
+        SUM(ra.estado <> 'ACEPTADO'  ) AS rechazadas,
+        SUM(ra.estado is null and t.estado not in ('FALTAIN','FALTAJU') ) AS pendientes,
+        SUM(t.estado in ('FALTAIN','FALTAJU')) AS faltas
+    FROM turnos t    
+    LEFT JOIN registros_asistencia ra ON t.id = ra.turno_id 
+    INNER JOIN personal p ON p.id = t.personal_id
+    INNER JOIN sitios s   ON s.id = t.sitio_id
+    WHERE  t.hora_inicio <= NOW()
     $cond
 ";
 
@@ -228,6 +273,8 @@ if ($res_r = mysqli_query($conexion, $sql_resumen)) {
         $total_registros  = (int)$row['total'];
         $total_aceptadas  = (int)$row['aceptadas'];
         $total_rechazadas = (int)$row['rechazadas'];
+        $total_pendientes = (int)$row['pendientes'];
+        $total_faltas = (int)$row['faltas'];
     }
     mysqli_free_result($res_r);
 }
@@ -241,12 +288,25 @@ $checadas = [];
 
 $sql_lista = "
     SELECT 
-        ra.*,
+        ra.id, 
+        COALESCE(ra.turno_id, t.id) AS turno_id,
+		ra.personal_id, 
+		ra.sitio_id, 
+		COALESCE(ra.tipo_evento, 'AUSENTE') AS tipo_evento, 
+		COALESCE(ra.fecha_hora, t.hora_inicio) AS fecha_hora, 
+		ra.latitud, 
+		ra.longitud, 
+		ra.esta_dentro_geocerca, 
+		ra.url_selfie, 
+		ra.puntaje_facial, 
+		ra.verificado_vida, 
+		IF(COALESCE(ra.estado, 'FALTA') = 'FALTA', t.observaciones_nomina ,ra.comentarios) AS comentarios, 
+		COALESCE(ra.estado, 'FALTA') AS estado, 
         p.id AS personal_id,
         p.nombres,
         p.apellidos,
         p.fecha_contratacion,
-        s.nombre AS sitio_nombre,
+        COALESCE(s.nombre, '') AS sitio_nombre,
         t.hora_inicio AS hora_programada_entrada,
         COALESCE(t.hora_entrada_real, (
             SELECT r2.fecha_hora
@@ -269,12 +329,14 @@ $sql_lista = "
             ORDER BY r3.fecha_hora DESC, r3.id DESC
             LIMIT 1
         )) AS hora_real_salida
-    FROM registros_asistencia ra
-    INNER JOIN personal p ON p.id = ra.personal_id
-    INNER JOIN sitios s   ON s.id = ra.sitio_id
-    LEFT JOIN turnos t    ON t.id = ra.turno_id
-    $cond
-    ORDER BY ra.fecha_hora DESC
+        ,t.estado as turno_estado
+    FROM turnos t    
+    LEFT JOIN registros_asistencia ra ON t.id = ra.turno_id 
+    INNER JOIN personal p ON p.id = t.personal_id
+    LEFT JOIN sitios s   ON s.id = ra.sitio_id
+    WHERE  t.hora_inicio <= NOW()
+    $cond    
+    ORDER BY 6 DESC
     LIMIT $por_pagina OFFSET $offset
 ";
 
@@ -296,6 +358,8 @@ function badgeEstado($estado) {
             return '<span class="badge bg-warning text-dark">Rechazado GPS</span>';
         case 'PENDIENTE_REVISION':
             return '<span class="badge bg-secondary">Pendiente</span>';
+        case 'FALTA':
+            return '<span class="badge bg-danger">Falta</span>';
         default:
             return '<span class="badge bg-light text-dark">'.htmlspecialchars($estado).'</span>';
     }
@@ -403,16 +467,17 @@ function badgeEstado($estado) {
                     </div>
 
                     <!-- WIDGETS RESUMEN -->
-                    <div class="row layout-top-spacing mb-3">
-                        <div class="col-xl-4 col-lg-4 col-md-4 col-sm-12 col-12 layout-spacing">
+                   <div class="row layout-top-spacing mb-3 d-flex flex-wrap justify-content-between">
+
+                        <div class="col-xl-2 col-lg-2 col-md-4 col-sm-6 col-12 layout-spacing">
                             <div class="widget widget-one_hybrid widget-followers">
                                 <div class="widget-heading">
                                     <div class="w-title">
                                         <div class="w-icon">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                                 viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                                 class="feather feather-list">
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                                class="feather feather-list">
                                                 <line x1="8" y1="6" x2="21" y2="6"></line>
                                                 <line x1="8" y1="12" x2="21" y2="12"></line>
                                                 <line x1="8" y1="18" x2="21" y2="18"></line>
@@ -421,9 +486,9 @@ function badgeEstado($estado) {
                                                 <line x1="3" y1="18" x2="3.01" y2="18"></line>
                                             </svg>
                                         </div>
-                                        <div class="">
+                                        <div>
                                             <p class="w-value"><?php echo $total_registros; ?></p>
-                                            <h5 class="">Checadas encontradas</h5>
+                                            <h5>Total de Turnos</h5>
                                         </div>
                                     </div>
                                 </div>
@@ -435,22 +500,22 @@ function badgeEstado($estado) {
                             </div>
                         </div>
 
-                        <div class="col-xl-4 col-lg-4 col-md-4 col-sm-12 col-12 layout-spacing">
+                        <div class="col-xl-2 col-lg-2 col-md-4 col-sm-6 col-12 layout-spacing">
                             <div class="widget widget-one_hybrid widget-engagement">
                                 <div class="widget-heading">
                                     <div class="w-title">
                                         <div class="w-icon">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                                 viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                                 class="feather feather-check-circle">
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                                class="feather feather-check-circle">
                                                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                                                 <polyline points="22 4 12 14.01 9 11.01"></polyline>
                                             </svg>
                                         </div>
-                                        <div class="">
+                                        <div>
                                             <p class="w-value"><?php echo $total_aceptadas; ?></p>
-                                            <h5 class="">Aceptadas</h5>
+                                            <h5>Checadas Aceptadas</h5>
                                         </div>
                                     </div>
                                 </div>
@@ -462,23 +527,23 @@ function badgeEstado($estado) {
                             </div>
                         </div>
 
-                        <div class="col-xl-4 col-lg-4 col-md-4 col-sm-12 col-12 layout-spacing">
+                        <div class="col-xl-2 col-lg-2 col-md-4 col-sm-6 col-12 layout-spacing">
                             <div class="widget widget-one_hybrid widget-referral">
                                 <div class="widget-heading">
                                     <div class="w-title">
                                         <div class="w-icon">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                                 viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                                 class="feather feather-alert-triangle">
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                                class="feather feather-alert-triangle">
                                                 <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
                                                 <line x1="12" y1="9" x2="12" y2="13"></line>
                                                 <line x1="12" y1="17" x2="12.01" y2="17"></line>
                                             </svg>
                                         </div>
-                                        <div class="">
+                                        <div>
                                             <p class="w-value"><?php echo $total_rechazadas; ?></p>
-                                            <h5 class="">Rechazadas / pendientes</h5>
+                                            <h5>Rechazadas</h5>
                                         </div>
                                     </div>
                                 </div>
@@ -489,7 +554,65 @@ function badgeEstado($estado) {
                                 </div>
                             </div>
                         </div>
+
+                        <div class="col-xl-2 col-lg-2 col-md-4 col-sm-6 col-12 layout-spacing">
+                            <div class="widget widget-one_hybrid widget-referral">
+                                <div class="widget-heading">
+                                    <div class="w-title">
+                                        <div class="w-icon">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                                class="feather feather-alert-triangle">
+                                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                                <line x1="12" y1="9" x2="12" y2="13"></line>
+                                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <p class="w-value"><?php echo $total_pendientes; ?></p>
+                                            <h5>Faltas</h5>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="widget-content">
+                                    <div class="w-chart">
+                                        <div id="hybrid_followers3"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-xl-2 col-lg-2 col-md-4 col-sm-6 col-12 layout-spacing">
+                            <div class="widget widget-one_hybrid widget-referral">
+                                <div class="widget-heading">
+                                    <div class="w-title">
+                                        <div class="w-icon">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                                class="feather feather-alert-triangle">
+                                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                                <line x1="12" y1="9" x2="12" y2="13"></line>
+                                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <p class="w-value"><?php echo $total_faltas; ?></p>
+                                            <h5>Faltas Confirmadas</h5>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="widget-content">
+                                    <div class="w-chart">
+                                        <div id="hybrid_followers3"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
+
 
                     <!-- FILTROS + TABLA -->
                     <div class="row layout-top-spacing">
@@ -570,6 +693,7 @@ function badgeEstado($estado) {
                                                 <option value="RECHAZADO_ROSTRO" <?php echo $estado=='RECHAZADO_ROSTRO'?'selected':''; ?>>Rechazado rostro</option>
                                                 <option value="RECHAZADO_GPS" <?php echo $estado=='RECHAZADO_GPS'?'selected':''; ?>>Rechazado GPS</option>
                                                 <option value="PENDIENTE_REVISION" <?php echo $estado=='PENDIENTE_REVISION'?'selected':''; ?>>Pendiente revisión</option>
+                                                <option value="FALTA" <?php echo $estado=='FALTA'?'selected':''; ?>>Falta</option>
                                             </select>
                                         </div>
 
@@ -709,7 +833,7 @@ function badgeEstado($estado) {
                                                                 <?php endif; ?>
                                                             </td>
                                                             <td>
-                                                                <?php if (strtoupper($c['estado']) !== 'ACEPTADO'): ?>
+                                                                <?php if (strtoupper($c['estado']) !== 'ACEPTADO' && strtoupper($c['estado']) !== 'FALTA'): ?>
                                                                     <form method="post" action="checadas-lista.php" style="display:inline;">
                                                                         <input type="hidden" name="accion" value="aprobar_checada">
                                                                         <input type="hidden" name="registro_id" value="<?php echo (int)$c['id']; ?>">
@@ -718,7 +842,19 @@ function badgeEstado($estado) {
                                                                         </button>
                                                                     </form>
                                                                 <?php else: ?>
-                                                                    <?php if (empty($c['hora_real_salida'])): ?>
+                                                                    <?php if (empty($c['hora_real_entrada']) && empty($c['hora_real_salida']) && $c['turno_estado']!= 'FALTAJU' && $c['turno_estado']!= 'FALTAIN' ): ?>
+                                                                        <button type="button"
+                                                                                class="btn btn-sm btn-danger"
+                                                                                data-bs-toggle="modal"
+                                                                                data-bs-target="#modalRegistrarFalta"
+                                                                                data-registro-id="<?php echo (int)$c['turno_id']; ?>"
+                                                                                data-tipo-evento="FALTA"
+                                                                                data-tipo-falta="FALTAIN"
+                                                                                >
+                                                                            Registrar Falta 
+                                                                        </button>
+                                                                    
+                                                                    <?php elseif (empty($c['hora_real_salida']) && !empty($c['hora_real_entrada']) ): ?>
                                                                         <button type="button"
                                                                                 class="btn btn-sm btn-warning"
                                                                                 data-bs-toggle="modal"
@@ -833,6 +969,75 @@ function badgeEstado($estado) {
         </div>
     </div>
 
+    
+    <!-- div class="modal fade" id="modalRegistrarFalta" tabindex="-1" aria-labelledby="modalRegistrarFaltaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="checadas-lista.php" id="formRegistrarFalta">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalRegistrarFaltaLabel">Registrar falta</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+
+                <div class="modal-body">
+                    <input type="text" name="accion" value="registrar_falta">
+                    <input type="text" name="registro_id" id="registroFaltaId" value="0">
+
+                    <div class="mb-3">
+                        <label for="tipoFalta" class="form-label">Tipo de falta</label>
+                        <select class="form-select" id="tipoFalta" name="tipo_falta" required>
+                            <option value="FALTAJU">Justificada</option>
+                            <option value="FALTAIN">Injustificada</option>
+                        </select>
+                        <div class="form-text">Indica si la falta es justificada o injustificada.</div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar falta</button>
+                </div>
+            </form>
+        </div>
+    </div-->
+
+    <div class="modal fade" id="modalRegistrarFalta" tabindex="-1" aria-labelledby="modalRegistrarFaltaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form method="post" action="checadas-lista.php" id="formRegistrarFalta">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalRegistrarFaltaLabel">Registrar falta</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <!-- Campos ocultos -->
+                        <input type="hidden" name="accion" value="registrar_falta">
+                        <input type="hidden" name="registro_id" id="registroFaltaId" value="0">
+
+                        <div class="mb-3">
+                            <label for="tipoFalta" class="form-label">Tipo de falta</label>
+                            <select class="form-select" id="tipoFalta" name="tipo_falta" required>
+                                <option value="">Seleccione una opción</option>
+                                <option value="FALTAJU">Justificada</option>
+                                <option value="FALTAIN">Injustificada</option>
+                            </select>
+                            <div class="form-text">Indica si la falta es justificada o injustificada.</div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar falta</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+    
     <!-- SCRIPTS -->
     <script src="../src/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script src="../src/plugins/src/perfect-scrollbar/perfect-scrollbar.min.js"></script>
@@ -863,6 +1068,33 @@ function badgeEstado($estado) {
                 });
             }
         });
+
+        
+
+        document.addEventListener('DOMContentLoaded', function () {
+            var modalFalta = document.getElementById('modalRegistrarFalta');
+            if (modalFalta) {
+                modalFalta.addEventListener('show.bs.modal', function (event) {
+                    var button = event.relatedTarget;
+                    if (!button) {
+                        return;
+                    }
+
+                    var registroId = button.getAttribute('data-registro-id');
+                    var tipoFalta = button.getAttribute('data-tipo-falta'); // ← valor del botón
+                    var tipoFaltaInput = document.getElementById('tipoFalta');
+                    var registroFaltaId = document.getElementById('registroFaltaId');
+
+                    registroFaltaId.value = registroId || '0';
+
+                    // Asignar el valor del botón al select
+                    if (tipoFaltaInput) {
+                        tipoFaltaInput.value = tipoFalta || 'FALTAIN';
+                    }
+                });
+            }
+        });
+
     </script>
 </body>
 </html>

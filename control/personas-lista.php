@@ -14,6 +14,52 @@ function personas_role_options(mysqli $conexion): array
     return app_db_all($conexion, "SELECT id, nombre FROM roles ORDER BY nombre ASC");
 }
 
+function personas_employee_options(mysqli $conexion): array
+{
+    return app_db_all($conexion, "
+        SELECT p.id, CONCAT(p.nombres, ' ', p.apellidos) AS nombre_completo
+        FROM personal p
+        ORDER BY p.nombres ASC, p.apellidos ASC
+    ");
+}
+
+function personas_rh_options(mysqli $conexion): array
+{
+    return app_db_all($conexion, "
+        SELECT p.id, CONCAT(p.nombres, ' ', p.apellidos) AS nombre_completo
+        FROM personal p
+        INNER JOIN usuarios u ON u.id = p.usuario_id
+        LEFT JOIN roles r ON r.id = u.rol_id
+        WHERE r.nombre IN ('RH', 'ADMIN', 'DUEÑO', 'NOMINA')
+        ORDER BY p.nombres ASC, p.apellidos ASC
+    ");
+}
+
+function personas_bind_record(mysqli_stmt $stmt, array $values): void
+{
+    $types = '';
+    foreach ($values as $value) {
+        if (is_int($value)) {
+            $types .= 'i';
+            continue;
+        }
+
+        if (is_float($value) || is_double($value)) {
+            $types .= 'd';
+            continue;
+        }
+
+        $types .= 's';
+    }
+
+    $bindings = [$stmt, $types];
+    foreach ($values as $index => $value) {
+        $bindings[] = &$values[$index];
+    }
+
+    call_user_func_array('mysqli_stmt_bind_param', $bindings);
+}
+
 function personas_clean_date_field(string $key): ?string
 {
     $value = app_clean_text(app_post($key, ''));
@@ -55,6 +101,8 @@ function personas_find_conflicts(mysqli $conexion, string $usuario, string $emai
 $messages = ['success' => '', 'error' => ''];
 $configs = app_get_config_map($conexion);
 $roleOptions = personas_role_options($conexion);
+$employeeOptions = personas_employee_options($conexion);
+$rhOptions = personas_rh_options($conexion);
 $defaultSalary = app_config_float($configs, 'nomina_salario_minimo_diario', 278.80);
 $defaultHourly = app_config_float($configs, 'nomina_valor_hora', 75.0);
 
@@ -104,6 +152,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $vacaciones2024Notas = app_clean_text(app_post('vacaciones_2024_notas', ''));
         $vacaciones2025Notas = app_clean_text(app_post('vacaciones_2025_notas', ''));
         $vacaciones2026Notas = app_clean_text(app_post('vacaciones_2026_notas', ''));
+        $referidoPorPersonalId = (int)app_post('referido_personal_id', 0);
+        $colocadorhid = (int)app_post('colocado_rh_id', 0);
 
         if ($estado !== 'ACTIVO') {
             $estaActivo = 0;
@@ -157,16 +207,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                              puesto_operativo, turno_base, servicio_asignado, infospe_estatus, cecceg_estatus, sexo, estado_civil, domicilio,
                              codigo_postal, nss, rfc, curp, cuenta_bancaria, banco, fecha_nacimiento, talla_camisa, talla_pantalon, talla_calzado,
                              contacto_emergencia, contacto_emergencia_parentesco, contacto_emergencia_telefono, tiene_hijos, edades_hijos,
-                             vacaciones_2024_notas, vacaciones_2025_notas, vacaciones_2026_notas)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                             referido_personal_id, colocado_rh_id, vacaciones_2024_notas, vacaciones_2025_notas, vacaciones_2026_notas)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ";
                     if (!$stmtPersonal = mysqli_prepare($conexion, $sqlPersonal)) {
                         throw new RuntimeException('No fue posible crear el registro de personal.');
                     }
 
-                    mysqli_stmt_bind_param(
-                        $stmtPersonal,
-                        'isssssddsisssssssssssssssssssssissss',
+                    $personalInsertValues = [
                         $newUserId,
                         $nombres,
                         $apellidos,
@@ -200,10 +248,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $contactoEmergenciaTelefono,
                         $tieneHijos,
                         $edadesHijos,
+                        $referidoPorPersonalId,
+                        $colocadorhid,
                         $vacaciones2024Notas,
                         $vacaciones2025Notas,
                         $vacaciones2026Notas
-                    );
+                    ];
+
+                    personas_bind_record($stmtPersonal, $personalInsertValues);
                     mysqli_stmt_execute($stmtPersonal);
                     $newPersonalId = (int)mysqli_insert_id($conexion);
                     mysqli_stmt_close($stmtPersonal);
@@ -275,6 +327,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             contacto_emergencia_telefono = ?,
                             tiene_hijos = ?,
                             edades_hijos = ?,
+                            referido_personal_id = ?,
+                            colocado_rh_id = ?,
                             vacaciones_2024_notas = ?,
                             vacaciones_2025_notas = ?,
                             vacaciones_2026_notas = ?
@@ -285,9 +339,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         throw new RuntimeException('No fue posible actualizar el registro de personal.');
                     }
 
-                    mysqli_stmt_bind_param(
-                        $stmtPersonal,
-                        'sssssddsisssssssssssssssssssssissssi',
+                    $personalUpdateValues = [
                         $nombres,
                         $apellidos,
                         $telefono,
@@ -320,11 +372,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $contactoEmergenciaTelefono,
                         $tieneHijos,
                         $edadesHijos,
+                        $referidoPorPersonalId,
+                        $colocadorhid,
                         $vacaciones2024Notas,
                         $vacaciones2025Notas,
                         $vacaciones2026Notas,
                         $personalId
-                    );
+                    ];
+
+                    personas_bind_record($stmtPersonal, $personalUpdateValues);
                     mysqli_stmt_execute($stmtPersonal);
                     mysqli_stmt_close($stmtPersonal);
 
@@ -593,6 +649,8 @@ app_render_alerts($messages);
                                     data-contacto-emergencia-telefono="<?php echo app_h($personal['contacto_emergencia_telefono'] ?? ''); ?>"
                                     data-tiene-hijos="<?php echo (int)($personal['tiene_hijos'] ?? 0); ?>"
                                     data-edades-hijos="<?php echo app_h($personal['edades_hijos'] ?? ''); ?>"
+                                    data-referido-personal-id="<?php echo (int)($personal['referido_personal_id'] ?? 0); ?>"
+                                    data-colocado-rh-id="<?php echo (int)($personal['colocado_rh_id'] ?? 0); ?>"
                                     data-vacaciones-2024-notas="<?php echo app_h($personal['vacaciones_2024_notas'] ?? ''); ?>"
                                     data-vacaciones-2025-notas="<?php echo app_h($personal['vacaciones_2025_notas'] ?? ''); ?>"
                                     data-vacaciones-2026-notas="<?php echo app_h($personal['vacaciones_2026_notas'] ?? ''); ?>">
@@ -645,6 +703,24 @@ app_render_alerts($messages);
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Fecha contratación</label>
                             <input type="date" class="form-control" name="fecha_contratacion" id="fecha_contratacion" value="<?php echo date('Y-m-d'); ?>">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Empleado que lo refirió</label>
+                            <select class="form-select" name="referido_personal_id" id="referido_personal_id">
+                                <option value="0">Selecciona...</option>
+                                <?php foreach ($employeeOptions as $employee): ?>
+                                    <option value="<?php echo (int)$employee['id']; ?>"><?php echo app_h($employee['nombre_completo']); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Personal de RH que lo empleó</label>
+                            <select class="form-select" name="colocado_rh_id" id="colocado_rh_id">
+                                <option value="0">Selecciona...</option>
+                                <?php foreach ($rhOptions as $rhEmployee): ?>
+                                    <option value="<?php echo (int)$rhEmployee['id']; ?>"><?php echo app_h($rhEmployee['nombre_completo']); ?></option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
                     </div>
 
@@ -879,6 +955,8 @@ $extraScripts = <<<HTML
 	        'contacto_emergencia_parentesco',
 	        'contacto_emergencia_telefono',
 	        'edades_hijos',
+	        'referido_personal_id',
+	        'colocado_rh_id',
 	        'vacaciones_2024_notas',
 	        'vacaciones_2025_notas',
 	        'vacaciones_2026_notas'
