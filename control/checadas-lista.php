@@ -285,6 +285,11 @@ $total_paginas = $total_registros > 0 ? ceil($total_registros / $por_pagina) : 1
 //  CONSULTA PRINCIPAL
 // =======================
 $checadas = [];
+$sql_limit_list = "LIMIT $por_pagina OFFSET $offset ";
+
+if (isset($_GET['export_csv']) && $_GET['export_csv'] == '1') {
+    $sql_limit_list = " ";
+}
 
 $sql_lista = "
     SELECT 
@@ -305,8 +310,9 @@ $sql_lista = "
         p.id AS personal_id,
         p.nombres,
         p.apellidos,
+        CONCAT(SUBSTRING(YEAR(p.fecha_contratacion), 3, 2), LPAD(p.id, 4, '0')) AS no_empleado,
         p.fecha_contratacion,
-        COALESCE(s.nombre, '') AS sitio_nombre,
+        COALESCE(s.nombre, st.nombre) AS sitio_nombre,
         t.hora_inicio AS hora_programada_entrada,
         COALESCE(t.hora_entrada_real, (
             SELECT r2.fecha_hora
@@ -334,10 +340,11 @@ $sql_lista = "
     LEFT JOIN registros_asistencia ra ON t.id = ra.turno_id 
     INNER JOIN personal p ON p.id = t.personal_id
     LEFT JOIN sitios s   ON s.id = ra.sitio_id
+    LEFT JOIN sitios st ON st.id = t.sitio_id
     WHERE  t.hora_inicio <= NOW()
     $cond    
     ORDER BY 6 DESC
-    LIMIT $por_pagina OFFSET $offset
+    $sql_limit_list
 ";
 
 if ($res_l = mysqli_query($conexion, $sql_lista)) {
@@ -345,6 +352,47 @@ if ($res_l = mysqli_query($conexion, $sql_lista)) {
         $checadas[] = $row;
     }
     mysqli_free_result($res_l);
+}
+
+if (isset($_GET['export_csv']) && $_GET['export_csv'] == '1') {
+   
+    $csv_rows = [];
+    if ($res_csv = mysqli_query($conexion, $sql_lista)) {
+        while ($row = mysqli_fetch_assoc($res_csv)) {
+            $csv_rows[] = $row;
+        }
+        mysqli_free_result($res_csv);
+    }
+
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="checadas-' . date('Ymd_His') . '.csv"');
+
+    $output = fopen('php://output', 'w');
+    fputcsv($output, [ 'Turno', 'No. empleado', 'Nombre', 'Sitio', 'Fecha', 'Tipo', 'Hora programada entrada', 'Hora real entrada', 'Hora programada salida', 'Hora real salida', 'Estado', 'Comentario', 'Dentro geocerca', 'Puntaje facial', 'Liveness', 'URL selfie'], ',', '"', '\\');
+
+    foreach ($csv_rows as $row) {
+        fputcsv($output, [
+            $row['turno_id'] ?? '',
+            $row['no_empleado'] ?? '',
+            trim(($row['nombres'] ?? '') . ' ' . ($row['apellidos'] ?? '')),
+            $row['sitio_nombre'] ?? '',
+            $row['fecha_hora'] ?? '',
+            $row['tipo_evento'] ?? '',
+            $row['hora_programada_entrada'] ?? '',
+            $row['hora_real_entrada'] ?? '',
+            $row['hora_programada_salida'] ?? '',
+            $row['hora_real_salida'] ?? '',
+            $row['estado'] ?? '',
+            $row['comentarios'] ?? '',
+            ((int)($row['esta_dentro_geocerca'] ?? 0) === 1) ? 'Dentro' : 'Fuera',
+            $row['puntaje_facial'] ?? '',
+            ((int)($row['verificado_vida'] ?? 0) === 1) ? 'OK' : 'No',
+            $row['url_selfie'] ?? '',
+        ], ',', '"', '\\');
+    }
+
+    fclose($output);
+    exit;
 }
 
 function badgeEstado($estado) {
@@ -614,6 +662,22 @@ function badgeEstado($estado) {
                     </div>
 
 
+                    <?php
+                    $export_qs = [
+                        'buscar' => $buscar,
+                        'fecha_desde' => $fecha_desde,
+                        'fecha_hasta' => $fecha_hasta,
+                        'sitio_id' => $sitio_id,
+                        'personal_id' => $personal_id,
+                        'tipo_evento' => $tipo_evento,
+                        'estado' => $estado,
+                        'export_csv' => 1,
+                    ];
+                    $export_url = 'checadas-lista.php?' . http_build_query(array_filter($export_qs, function ($value) {
+                        return $value !== '' && $value !== null && $value !== [] && $value !== 0;
+                    }));
+                    ?>
+
                     <!-- FILTROS + TABLA -->
                     <div class="row layout-top-spacing">
 
@@ -697,10 +761,13 @@ function badgeEstado($estado) {
                                             </select>
                                         </div>
 
-                                        <div class="d-flex justify-content-between">
+                                       <div class="d-flex justify-content-between align-items-center gap-2">
                                             <button type="submit" class="btn btn-primary btn-sm">Aplicar</button>
-                                            <a href="checadas-lista.php" class="btn btn-light btn-sm">Limpiar</a>
-                                        </div>
+                                           <div class="d-flex gap-2">
+                                               <a href="checadas-lista.php" class="btn btn-light btn-sm">Limpiar</a>
+                                               <a href="<?php echo htmlspecialchars($export_url); ?>" class="btn btn-success btn-sm">Exportar CSV</a>
+                                           </div>
+                                       </div>
                                     </form>
                                 </div>
                             </div>
@@ -711,7 +778,7 @@ function badgeEstado($estado) {
                             <div class="widget widget-table-one tabla-checadas" style="
     padding: 20px!important;
 ">
-                                <div class="widget-heading d-flex justify-content-between align-items-center">
+                                <div class="widget-heading">
                                     <div>
                                         <h6 class="">Listado de checadas</h6>
                                         <small class="text-muted">
