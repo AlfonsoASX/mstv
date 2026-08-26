@@ -208,7 +208,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                              codigo_postal, nss, rfc, curp, cuenta_bancaria, banco, fecha_nacimiento, talla_camisa, talla_pantalon, talla_calzado,
                              contacto_emergencia, contacto_emergencia_parentesco, contacto_emergencia_telefono, tiene_hijos, edades_hijos,
                              referido_personal_id, colocado_rh_id, vacaciones_2024_notas, vacaciones_2025_notas, vacaciones_2026_notas)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ";
                     if (!$stmtPersonal = mysqli_prepare($conexion, $sqlPersonal)) {
                         throw new RuntimeException('No fue posible crear el registro de personal.');
