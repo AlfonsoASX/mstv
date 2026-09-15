@@ -8,40 +8,29 @@ app_require_roles(['ADMIN', 'RH', 'NOMINA', 'DUEÑO']);
 
 $periodoId = (int)app_get('periodo_id', 0);
 $personalId = (int)app_get('personal_id', 0);
+$calculoId = (int)app_get('calculo_id', 0);
 
 $periodo = $periodoId > 0 ? app_get_period($conexion, $periodoId) : null;
 $recibo = null;
 
 if ($periodo && $personalId > 0) {
-    $recibo = app_db_one(
-        $conexion,
-        "SELECT
-            nr.*,
-            p.numero_empleado,
-            p.nombres,
-            p.apellidos,
-            p.telefono,
-            p.fecha_contratacion,
-            u.usuario,
-            u.email
-         FROM nomina_resumen nr
-         INNER JOIN personal p ON p.id = nr.personal_id
-         INNER JOIN usuarios u ON u.id = p.usuario_id
-         WHERE nr.periodo_id = " . $periodoId . "
-           AND nr.personal_id = " . $personalId . "
-         LIMIT 1"
-    );
+    
+    /* $recibo = app_db_one($conexion, "CALL get_nomina_datos_recibo(" . $calculoId . ")");*/
+    $result = mysqli_query($conexion, "CALL get_nomina_datos_recibo($calculoId)");
+
+    $recibo = mysqli_fetch_assoc($result);
+
+    // limpiar los result sets del SP
+    while (mysqli_more_results($conexion)) {
+        mysqli_next_result($conexion);
+    }
+
 }
 
 $conceptos = $recibo
     ? app_db_all(
         $conexion,
-        "SELECT *
-         FROM nomina_conceptos
-         WHERE periodo_id = " . $periodoId . "
-           AND personal_id = " . $personalId . "
-           AND monto <> 0
-         ORDER BY FIELD(categoria, 'PERCEPCION', 'DEDUCCION', 'INFORMATIVO'), id ASC"
+        "CALL get_nomina_conceptos_recibo(" . $periodoId . ", " . $personalId . ")"
     )
     : [];
 
@@ -50,35 +39,7 @@ function recibo_numero_empleado(array $recibo): string
     return app_employee_number($recibo);
 }
 
-function recibo_percepciones(array $row): float
-{
-    return (float)$row['salario_base']
-        + (float)$row['pago_horas_extra']
-        + (float)$row['turnos_extra_monto']
-        + (float)$row['vacaciones_monto']
-        + (float)$row['prima_vacacional_monto']
-        + (float)$row['dias_festivos_monto']
-        + (float)$row['incapacidades_monto']
-        + (float)$row['bonos_monto']
-        + (float)$row['finiquito_monto'];
-}
 
-function recibo_deducciones(array $row): float
-{
-    return (float)$row['descuento_retardos']
-        + (float)$row['descuentos_faltas']
-        + (float)($row['descuentos_descansos'] ?? 0)
-        + (float)$row['descuentos_sanciones']
-        + (float)$row['descuentos_material']
-        + (float)$row['descuentos_infonavit']
-        + (float)$row['descuentos_fonacot']
-        + (float)$row['descuentos_prestamos']
-        + (float)$row['descuentos_adelantos']
-        + (float)$row['otros_descuentos'];
-}
-
-$percepciones = $recibo ? recibo_percepciones($recibo) : 0.0;
-$deducciones = $recibo ? recibo_deducciones($recibo) : 0.0;
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -154,8 +115,10 @@ $deducciones = $recibo ? recibo_deducciones($recibo) : 0.0;
             </div>
             <div class="no-print d-flex gap-2">
                 <button type="button" class="btn btn-primary" onclick="window.print()">Imprimir / Guardar PDF</button>
-                <a href="nomina-calculo.php?periodo_id=<?php echo (int)$periodoId; ?>" class="btn btn-outline-secondary">Volver</a>
+                <a href="nomina_calculo_previo.php?periodo_id=<?php echo (int)$periodoId; ?>" class="btn btn-outline-secondary">Volver</a>
             </div>
+           
+            
         </div>
 
         <?php if (!$periodo || !$recibo): ?>
@@ -182,13 +145,13 @@ $deducciones = $recibo ? recibo_deducciones($recibo) : 0.0;
                 <div class="col-md-4">
                     <div class="amount-box">
                         <div class="muted-label">Percepciones</div>
-                        <h3 class="mb-0"><?php echo app_money($percepciones); ?></h3>
+                        <h3 class="mb-0"><?php echo app_money($recibo['precepciones']); ?></h3>
                     </div>
                 </div>
                 <div class="col-md-4">
                     <div class="amount-box">
                         <div class="muted-label">Deducciones</div>
-                        <h3 class="mb-0"><?php echo app_money($deducciones); ?></h3>
+                        <h3 class="mb-0"><?php echo app_money($recibo['deducciones']); ?></h3>
                     </div>
                 </div>
                 <div class="col-md-4">

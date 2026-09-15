@@ -103,8 +103,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
         $tipofalta = isset($_POST['tipo_falta']) ? trim($_POST['tipo_falta']) : '';
 
             $mensaje_error = 'registro falta.';
-            echo 'TIPO FALTA: ' . $tipofalta ;
-             echo 'ID Turno: ' . $registro_id ;
              if ($tipofalta == 'FALTAIN') {
                 $tipo_f = 'FALTA INJUSTIFICADA';
             } else {

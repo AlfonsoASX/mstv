@@ -175,6 +175,37 @@ function app_salary_diario(array $personal, array $configs): float
     return app_config_float($configs, 'nomina_salario_minimo_diario', 0.0);
 }
 
+function app_salary_base(array $personal, array $configs): float
+{
+    $salary = (float)($personal['salario_base'] ?? 0);
+    if ($salary > 0) {
+        return $salary;
+    }
+
+    return app_config_float($configs, 'nomina_salario_base', 0.0);
+}
+
+function app_descuento_falta_justificada(array $personal, array $configs): float
+{
+    $desc_f_justificada = (float)($personal['descuento_falta_justificada'] ?? 0);
+    if ($desc_f_justificada > 0) {
+        return $desc_f_justificada;
+    }
+
+    return app_config_float($configs, 'faltas_descuento_justificada', 0.0);
+}
+
+
+function app_descuento_falta_injustificada(array $personal, array $configs): float
+{
+    $desc_f_injustificada = (float)($personal['descuento_falta_injustificada'] ?? 0);
+    if ($desc_f_injustificada > 0) {
+        return $desc_f_injustificada;
+    }
+
+    return app_config_float($configs, 'faltas_descuento_injustificada', 0.0);
+}
+
 function app_salary_hora(array $personal, array $configs): float
 {
     $salary = (float)($personal['salario_hora'] ?? 0);
@@ -247,7 +278,7 @@ function app_vacation_summary(mysqli $conexion, int $personalId, array $configs,
         ];
     }
 
-    $years = app_years_between($personal['fecha_contratacion'] ?? null, $referenceDate);
+    $years = app_years_between($personal['fecha_contratacion'] ?? null, $referenceDate);    
     $generated = app_total_vacation_entitlement($years, $configs);
     $summary = [
         'generated' => $generated,
@@ -288,29 +319,35 @@ function app_vacation_summary(mysqli $conexion, int $personalId, array $configs,
         }
     }
 
-    $summary['balance'] = $summary['generated'] - $summary['gozadas'] - $summary['pagadas'] + $summary['ajustes'];
+    $summary['balance_gozadas'] = $summary['generated'] - $summary['gozadas'] + $summary['ajustes'];
+    $summary['balance_pagadas'] = $summary['generated'] - $summary['pagadas'] + $summary['ajustes'];
 
     return $summary;
 }
 
-function app_recalculate_vacation_balance(mysqli $conexion, int $personalId, array $configs, ?string $referenceDate = null): float
+function app_recalculate_vacation_balance(mysqli $conexion, int $personalId, array $configs, ?string $referenceDate = null): array
 {
     $referenceDate = $referenceDate ?: date('Y-m-d');
     $summary = app_vacation_summary($conexion, $personalId, $configs, $referenceDate);
-    $balance = (float)$summary['balance'];
+    $balance_gozadas = (float)$summary['balance_gozadas'];
+    $balance_pagadas = (float)$summary['balance_pagadas'];
+    $balance['gozadas'] = $balance_gozadas;
+    $balance['pagadas'] = $balance_pagadas;
 
     $sql = "
         UPDATE personal
         SET dias_vacaciones_disponibles = ?,
+            dias_vacaciones_para_pago = ?,
             fecha_ultimo_calculo_vacaciones = ?
         WHERE id = ?
     ";
 
     if ($stmt = mysqli_prepare($conexion, $sql)) {
-        mysqli_stmt_bind_param($stmt, 'dsi', $balance, $referenceDate, $personalId);
+        mysqli_stmt_bind_param($stmt, 'ddsi', $balance_gozadas, $balance_pagadas, $referenceDate, $personalId);
         mysqli_stmt_execute($stmt);
         mysqli_stmt_close($stmt);
     }
+    
 
     return $balance;
 }
@@ -705,7 +742,8 @@ function app_cleanup_period_calculation(mysqli $conexion, int $periodoId): void
     mysqli_query($conexion, "DELETE FROM caja_ahorro_movimientos WHERE periodo_id = " . (int)$periodoId . " AND tipo_movimiento IN ('APORTACION','PRESTAMO_CARGO','PRESTAMO_ABONO','INTERES')");
 }
 
-function app_calculate_nomina_period(mysqli $conexion, int $periodoId, array $configs): array
+// function app_calculate_nomina_period(mysqli $conexion, int $periodoId, array $configs): array
+function app_calculate_nomina_period(mysqli $conexion, int $periodoId): array
 {
     $periodo = app_get_period($conexion, $periodoId);
     if (!$periodo) {
@@ -719,24 +757,29 @@ function app_calculate_nomina_period(mysqli $conexion, int $periodoId, array $co
     app_cleanup_period_calculation($conexion, $periodoId);
 
     $personalList = app_get_active_personal($conexion);
-    $tolerancia = app_config_int($configs, 'turnos_tolerancia_minutos', 15);
-    $maxRetardoHoras = app_config_int($configs, 'turnos_max_retardo_horas', 4);
-    $valorHora = app_config_float($configs, 'nomina_valor_hora', 75.0);
-    $factorFestivo = app_config_float($configs, 'nomina_factor_dia_festivo', 2.0);
+    // $tolerancia = app_config_int($configs, 'turnos_tolerancia_minutos', 15);
+    //$maxRetardoHoras = app_config_int($configs, 'turnos_max_retardo_horas', 4);
+    //$valorHora = app_config_float($configs, 'nomina_valor_hora', 75.0);
+    //$factorFestivo = app_config_float($configs, 'nomina_factor_dia_festivo', 2.0);
 
     foreach ($personalList as $personal) {
         $personalId = (int)$personal['id'];
-        $salarioDiario = app_salary_diario($personal, $configs);
-        $salarioHora = app_salary_hora($personal, $configs);
-        $turnos = app_build_turn_map($conexion, $personalId, $periodo['fecha_inicio'], $periodo['fecha_fin']);
+        // $salarioDiario = app_salary_diario($personal, $configs);
+        //$salarioBase2 = app_salary_base($personal, $configs);
+        // $salarioHora = app_salary_hora($personal, $configs);
+        /*$turnos = app_build_turn_map($conexion, $personalId, $periodo['fecha_inicio'], $periodo['fecha_fin']);
+        $desc_f_justificada = app_descuento_falta_justificada($personal, $configs);
+        $desc_f_injustificada = app_descuento_falta_injustificada($personal, $configs);
+        */
 
         $salarioBase = 0.0;
-        $retardosHoras = 0.0;
+        /*$retardosHoras = 0.0;
         $descuentoRetardos = 0.0;
         $turnosExtraMonto = 0.0;
         $turnosCancelados = 0;
+        */
 
-        foreach ($turnos as $turno) {
+        /*foreach ($turnos as $turno) {
             $esExtra = (int)$turno['es_turno_extra'] === 1;
             $duracion = (float)($turno['horas_programadas'] ?? 0);
             if ($duracion <= 0) {
@@ -770,8 +813,9 @@ function app_calculate_nomina_period(mysqli $conexion, int $periodoId, array $co
                 $descuentoRetardos += $retardo['horas'] * $valorHora;
             }
         }
+*/
 
-        $rowHoras = app_db_one(
+       /* $rowHoras = app_db_one(
             $conexion,
             "SELECT
                 COALESCE(SUM(CASE WHEN tipo_ajuste = 'BONO' THEN horas ELSE 0 END), 0) AS horas_bono,
@@ -788,7 +832,7 @@ function app_calculate_nomina_period(mysqli $conexion, int $periodoId, array $co
         $otrosDescuentos = (float)($rowHoras['deducciones'] ?? 0);
         $pagoHorasExtra = $horasExtra * $salarioHora;
         $otrosDescuentos += $horasMenos * $salarioHora;
-
+        */
         $vacaciones = app_db_all(
             $conexion,
             "SELECT *
@@ -809,7 +853,7 @@ function app_calculate_nomina_period(mysqli $conexion, int $periodoId, array $co
             $primaVacacional += $prima;
         }
 
-        $bonosMonto = (float)app_db_value(
+        /*$bonosMonto = (float)app_db_value(
             $conexion,
             "SELECT COALESCE(SUM(monto), 0) AS total
              FROM bonos_personal
@@ -818,7 +862,7 @@ function app_calculate_nomina_period(mysqli $conexion, int $periodoId, array $co
                                        AND '" . mysqli_real_escape_string($conexion, $periodo['fecha_fin']) . "'",
             0
         );
-
+        
         $incapacidades = app_db_all(
             $conexion,
             "SELECT *
@@ -836,7 +880,7 @@ function app_calculate_nomina_period(mysqli $conexion, int $periodoId, array $co
             }
             $incapacidadesMonto += $dias * $montoDia;
         }
-
+        
         $faltasMonto = (float)app_db_value(
             $conexion,
             "SELECT COALESCE(SUM(monto_descuento), 0) AS total
@@ -847,6 +891,20 @@ function app_calculate_nomina_period(mysqli $conexion, int $periodoId, array $co
                                    AND '" . mysqli_real_escape_string($conexion, $periodo['fecha_fin']) . "'",
             0
         );
+
+        $faltasDec = (float)app_db_value(
+            $conexion,
+            "SELECT 
+                (SUM(CASE WHEN estado='FALTAJU' then 1 else 0 end) * ".$desc_f_justificada." ) + (SUM(CASE WHEN estado='FALTAIN' then 1 else 0 end ) * ".$desc_f_injustificada." ) AS total_descuento
+            FROM turnos 
+            WHERE personal_id=" . $personalId . " 
+                AND DATE(hora_inicio)>='".$periodo['fecha_inicio']."' 
+                AND DATE(hora_inicio)<='".$periodo['fecha_fin']."' 
+                    AND estado in ('FALTAJU','FALTAIN') ;",
+            0
+        );
+        
+        $faltasMonto = $faltasDec + $faltasMonto;
 
         $descansosMonto = (float)app_db_value(
             $conexion,
@@ -859,7 +917,7 @@ function app_calculate_nomina_period(mysqli $conexion, int $periodoId, array $co
                                    AND '" . mysqli_real_escape_string($conexion, $periodo['fecha_fin']) . "'",
             0
         );
-
+*/
         $sancionesActivas = app_db_all(
             $conexion,
             "SELECT *
@@ -883,12 +941,13 @@ function app_calculate_nomina_period(mysqli $conexion, int $periodoId, array $co
         foreach ($materialesActivos as $material) {
             $descuentosMaterial += (float)$material['monto_por_quincena'];
         }
+            
 
-        $capture = app_get_period_manual_capture($conexion, $periodoId, $personalId);
+        /*$capture = app_get_period_manual_capture($conexion, $periodoId, $personalId);
         $descuentosInfonavit = $capture ? (float)$capture['descuento_infonavit'] : (float)$personal['monto_infonavit_quincenal'];
         $descuentosFonacot = $capture ? (float)$capture['descuento_fonacot'] : (float)$personal['monto_fonacot_quincenal'];
         $otrosDescuentos += $capture ? (float)$capture['descuento_manual_otro'] : 0.0;
-
+        */
         $descuentosPrestamos = 0.0;
         foreach (app_get_prestamos_activos($conexion, $personalId) as $prestamo) {
             $saldo = (float)$prestamo['saldo_insoluto'];
@@ -991,7 +1050,7 @@ function app_calculate_nomina_period(mysqli $conexion, int $periodoId, array $co
             );
         }
 
-        $descuentosAdelantos = app_get_total_adelantos_periodo($conexion, $periodoId, $personalId);
+        // $descuentosAdelantos = app_get_total_adelantos_periodo($conexion, $periodoId, $personalId);
 
         $participaCaja = (int)$personal['participa_caja_ahorro'] === 1;
         $aportacionCaja = $participaCaja ? (float)$personal['aportacion_caja_ahorro_quincenal'] : 0.0;
@@ -1008,7 +1067,7 @@ function app_calculate_nomina_period(mysqli $conexion, int $periodoId, array $co
             }
         }
 
-        $holidays = app_db_all(
+       /* $holidays = app_db_all(
             $conexion,
             "SELECT *
              FROM dias_festivos
@@ -1024,14 +1083,14 @@ function app_calculate_nomina_period(mysqli $conexion, int $periodoId, array $co
                     $diasFestivosMonto += $salarioDiario * max(0.0, $factorFestivo - 1.0);
                 }
             }
-        }
+        }*/
 
         $finiquitoMonto = 0.0;
         if (($personal['estatus_finiquito'] ?? 'NINGUNO') === 'PENDIENTE') {
             $finiquitoMonto = (float)$personal['finiquito_monto'];
         }
 
-        $percepciones = $salarioBase + $pagoHorasExtra + $turnosExtraMonto + $vacacionesMonto + $primaVacacional + $diasFestivosMonto + $incapacidadesMonto + $bonosMonto + $finiquitoMonto;
+        /*$percepciones = $salarioBase + $pagoHorasExtra + $turnosExtraMonto + $vacacionesMonto + $primaVacacional + $diasFestivosMonto + $incapacidadesMonto + $bonosMonto + $finiquitoMonto;
         $deducciones = $descuentoRetardos + $faltasMonto + $descansosMonto + $descuentosSanciones + $descuentosMaterial + $descuentosInfonavit + $descuentosFonacot + $descuentosPrestamos + $descuentosAdelantos + $otrosDescuentos + $aportacionCaja;
         $neto = $percepciones - $deducciones;
 
@@ -1085,6 +1144,7 @@ function app_calculate_nomina_period(mysqli $conexion, int $periodoId, array $co
         app_save_nomina_concepto($conexion, $resumenId, $periodoId, $personalId, 'DEDUCCION', 'CAJA_AHORRO', 'Aportación a caja de ahorro', 1, $aportacionCaja);
         app_save_nomina_concepto($conexion, $resumenId, $periodoId, $personalId, 'DEDUCCION', 'OTROS', 'Otros descuentos', 1, $otrosDescuentos);
         app_save_nomina_concepto($conexion, $resumenId, $periodoId, $personalId, 'PERCEPCION', 'FINIQUITO', 'Pago de finiquito', 1, $finiquitoMonto);
+        */
 
         foreach ($sancionesActivas as $sancion) {
             $restantes = max(0, ((int)$sancion['quincenas_restantes']) - 1);
@@ -1110,8 +1170,20 @@ function app_calculate_nomina_period(mysqli $conexion, int $periodoId, array $co
             );
         }
 
-        app_recalculate_vacation_balance($conexion, $personalId, $configs, $periodo['fecha_fin']);
+       // app_recalculate_vacation_balance($conexion, $personalId, $configs, $periodo['fecha_fin']);
     }
+
+    //Actualiza las vacaciones
+   /* $stmt = $conexion->prepare("CALL ConfirmarCerrarNominaPeriodo(?)");
+    $stmt->bind_param("i", $periodoId);
+
+    if (!$stmt->execute()) {
+        // Solo mostrar mensaje si hay error
+        echo "Error al ejecutar Actualizacion de Vacaciones: " . $stmt->error;
+    }
+
+    $stmt->close();*/
+    // fin Actualiza las vacaciones
 
     mysqli_query($conexion, "UPDATE nomina_periodos SET estado = 'CALCULADO' WHERE id = " . (int)$periodoId);
 

@@ -33,7 +33,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $otro = (float)app_post('captura_otro', 0);
         $observaciones = app_clean_text(app_post('captura_observaciones', ''));
 
-        if ($periodoIdPost <= 0 || $personalId <= 0) {
+        $sqlestatus="SELECT estatus FROM nomina_calculo WHERE periodo_id=".$periodoIdPost." AND persona_id=".$personalId." ";
+        $rowcaculo = app_db_all($conexion,$sqlestatus );
+        $estatuscaculo=$rowcaculo[0]['estatus'];
+
+        if ($estatuscaculo == 'CONFIRMADO') {
+            $messages['error'] = 'No se pueden agregar descuentos a este colaborador ya que su nomina del periodo seleccionado ya fue confirmada.';
+        }
+        elseif ($periodoIdPost <= 0 || $personalId <= 0) {
             $messages['error'] = 'Selecciona periodo y colaborador para guardar la captura.';
         } else {
             app_create_or_update_capture($conexion, $periodoIdPost, $personalId, $infonavit, $fonacot, $otro, $observaciones);
@@ -190,7 +197,8 @@ app_render_alerts($messages);
                             </small>
                         </div>
                         <div class="d-flex gap-2">
-                            <a href="nomina-exportacion.php?periodo_id=<?php echo (int)$selectedPeriod['id']; ?>" class="btn btn-outline-secondary">Exportar</a>
+                            <!--a href="nomina_calculo_previo.php?periodo_id=<?php echo (int)$selectedPeriod['id']; ?>" class="btn btn-outline-info">Vista previa</a-->
+                            <!-- a href="nomina-exportacion.php?periodo_id=<?php echo (int)$selectedPeriod['id']; ?>" class="btn btn-outline-secondary">Exportar</a -->
                         </div>
                     </div>
 
@@ -211,13 +219,26 @@ app_render_alerts($messages);
                         </div>
 
                         <div class="col-md-4 mb-3">
-                            <form method="post">
+                            <!--form method="post">
                                 <input type="hidden" name="accion" value="calcular_nomina">
                                 <input type="hidden" name="periodo_id" value="<?php echo (int)$selectedPeriod['id']; ?>">
                                 <button type="submit" class="btn btn-primary w-100" <?php echo $selectedPeriod['estado'] !== 'ABIERTO' ? 'disabled' : ''; ?>>
                                     Calcular nómina
+                                </button>   
+                            </form-->
+                            
+                            <!-- a href="nomina_calculo_previo.php?periodo_id=<?php echo (int)$selectedPeriod['id']; ?>" class="btn btn-outline-info">Calcular nómina</a -->
+                            <?php if ($selectedPeriod['estado'] === 'ABIERTO'): ?>
+                                <a href="nomina_calculo_previo.php?periodo_id=<?php echo (int)$selectedPeriod['id']; ?>" 
+                                class="btn btn-outline-info">
+                                    Calcular nómina
+                                </a>
+                            <?php else: ?>
+                                <button class="btn btn-outline-info" disabled>
+                                    Calcular nómina
                                 </button>
-                            </form>
+                            <?php endif; ?>
+
                         </div>
 
                         <div class="col-md-4 mb-3">
@@ -270,7 +291,7 @@ app_render_alerts($messages);
                                 <input type="text" name="captura_observaciones" class="form-control">
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-outline-primary">Guardar captura</button>
+                        <button type="submit" class="btn btn-outline-primary" <?php echo $selectedPeriod['estado'] === 'CERRADO' ? 'disabled' : ''; ?>>Guardar captura</button>
                     </form>
 
                     <div class="table-responsive mt-4">

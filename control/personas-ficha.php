@@ -690,9 +690,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $personal = app_get_personal($conexion, $personalId);
 }
 
-$vacacionesDisponibles = app_recalculate_vacation_balance($conexion, $personalId, $configs);
+$vacacionesDisponiblesRec = app_recalculate_vacation_balance($conexion, $personalId, $configs);
 $vacationSummary = app_vacation_summary($conexion, $personalId, $configs);
-$vacacionesDisponibles = (float)$vacationSummary['balance'];
+$vacacionesDisponibles = (float)$vacationSummary['balance_gozadas'];
+$vacacionesDisponiblesPago = (float)$vacationSummary['balance_pagadas'];
 $saldoCaja = app_get_savings_balance($conexion, $personalId);
 $poolDisponible = app_total_savings_pool($conexion);
 $capacidadPrestamo = app_get_prestamo_capacidad($personal, $poolDisponible, $configs);
@@ -743,7 +744,11 @@ app_render_alerts($messages);
     <div class="col-md-3">
         <div class="card summary-card p-3">
             <div class="summary-label">Vacaciones disponibles</div>
-            <div class="summary-value"><?php echo app_number($vacacionesDisponibles); ?></div>
+            <div class="summary-value">Por gozar: <?php echo app_number($vacacionesDisponibles); ?></div>
+            <div class="<?php echo $vacacionesDisponibles < 0 ? 'text-danger' : 'text-muted'; ?>">
+                <?php echo $vacacionesDisponibles < 0 ? 'saldo sobregirado' : 'días'; ?>
+            </div> 
+            <div class="summary-value">Por Pagar: <?php echo app_number($vacacionesDisponiblesPago); ?></div>
             <div class="<?php echo $vacacionesDisponibles < 0 ? 'text-danger' : 'text-muted'; ?>">
                 <?php echo $vacacionesDisponibles < 0 ? 'saldo sobregirado' : 'días'; ?>
             </div>
