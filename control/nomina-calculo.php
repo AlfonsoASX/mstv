@@ -242,13 +242,13 @@ app_render_alerts($messages);
                         </div>
 
                         <div class="col-md-4 mb-3">
-                            <form method="post">
+                            <!-- form method="post">
                                 <input type="hidden" name="accion" value="cerrar_periodo">
                                 <input type="hidden" name="periodo_id" value="<?php echo (int)$selectedPeriod['id']; ?>">
                                 <button type="submit" class="btn btn-outline-dark w-100" <?php echo $selectedPeriod['estado'] !== 'CALCULADO' ? 'disabled' : ''; ?>>
                                     Cerrar periodo
                                 </button>
-                            </form>
+                            </form -->
                         </div>
                     </div>
                 </div>
