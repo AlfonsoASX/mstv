@@ -656,8 +656,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $vacacionesRestantes = app_recalculate_vacation_balance($conexion, $personalId, $configs, $fecha);
         $salarioDia = app_salary_diario($personal, $configs);
         $primaPct = app_config_float($configs, 'vacaciones_prima_porcentaje', 25.0);
-        $vacacionesPendientesMonto = $vacacionesRestantes * $salarioDia;
-        $vacacionesPendientesPrima = $vacacionesPendientesMonto * ($primaPct / 100);
+        $vacacionesPendientesMonto = $vacacionesRestantes['gozadas'] * $salarioDia;
+        $vacacionesPendientesPrima = $vacacionesRestantes['pagadas'] * $salarioDia * ($primaPct / 100);
         $finiquitoTotal = $finiquitoCapturado + $vacacionesPendientesMonto + $vacacionesPendientesPrima;
 
         mysqli_query(
