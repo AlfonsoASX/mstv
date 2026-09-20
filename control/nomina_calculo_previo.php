@@ -12,7 +12,7 @@ $messages['success'] = (string)($_SESSION['nomina_calculo_previo_success'] ?? ''
 unset($_SESSION['nomina_calculo_previo_success']);
 $periodId = (int)app_get('periodo_id', 0);
 if ($periodId <= 0) {
-    $latest = app_db_one($conexion, "SELECT id FROM nomina_periodos ORDER BY fecha_inicio DESC, id DESC LIMIT 1");
+    $latest = app_db_one($conexion, "SELECT id FROM nomina_periodos WHERE estado IN ('CALCULADO','CERRADO') ORDER BY fecha_inicio DESC, id DESC LIMIT 1");
     $periodId = (int)($latest['id'] ?? 0);
 }
 
