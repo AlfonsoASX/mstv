@@ -322,7 +322,7 @@ if ($period && app_get('format', '') === 'csv') {
             $row['referidos'] ?? 0,
             "$".$row['salario_hora'] ?? 0,
             "$".$row['salario_base'] ?? 0,
-            "$".$row['salario_minimo_diario'] ?? 0,
+            "$".$row['salario_diario'] ?? 0,
             "$".$row['desc_faltas_injustificada'] ?? 0,
             "$".$row['desc_faltas_justificada'] ?? 0,
             "$".$row['desc_hrs_tarde'] ?? 0,
