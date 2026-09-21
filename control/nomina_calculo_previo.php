@@ -302,10 +302,10 @@ if ($period && app_get('format', '') === 'csv') {
     header('Content-Disposition: attachment; filename="nomina-previa-' . $period['clave'] . '.csv"');
     $out = fopen('php://output', 'w');
     // fputcsv($out, ['Colaborador', 'Rol', 'Turnos', 'Asistencias', 'Inasistencias', 'Horas de retardo', 'Salario diario', 'Bono', 'Pago hrs extra', 'Deducciones', 'Depósito', 'Estatus']);
-    fputcsv($out, ['Colaborador','Rol','Periodo','Turnos',  'Asistencias','Faltas','Faltas Injustificadas','Faltas Justificadas','Vacaciones Días pagados prima','Vacaciones Días gozados','Horas retardo','Días festivos','Días incapacidad','Referidos','Salario hora','Salario base','Salario minimo diario','Descuento faltas injustificada','Descuento faltas justificada','Descuento hrs tarde','Infonavit','Fonacot','Abono a Prestamo','Sanciones','Adelantos de nomina','Descuento botas material','Aportacion caja de ahorro','Descuento otros','Bono','Importe por referido','Vacaciones y prima vacacional','Turnos extras especial','Pago turnos extras especial','Turnos extras 12','Pago turnos extras 12','Turnos extras 24','Pago turnos extras 24','Pago Días festivos','Horas extra','Pago hrs extra','Pagos extras','Deducciones','Ajustes','Salario Deposito','Estatus','Comentarios']);
+    fputcsv($out, ['No.','Colaborador','Rol','Periodo','Turnos',  'Asistencias','Faltas','Faltas Injustificadas','Faltas Justificadas','Vacaciones Días pagados prima','Vacaciones Días gozados','Horas retardo','Días festivos','Días incapacidad','Referidos','Salario hora','Salario base','Salario diario','Descuento faltas injustificada','Descuento faltas justificada','Descuento hrs tarde','Infonavit','Fonacot','Abono a Prestamo','Sanciones','Adelantos de nomina','Descuento botas material','Aportacion caja de ahorro','Descuento otros','Bono','Importe por referido','Vacaciones y prima vacacional','Turnos extras especial','Pago turnos extras especial','Turnos extras 12','Pago turnos extras 12','Turnos extras 24','Pago turnos extras 24','Pago Días festivos','Horas extra','Pago hrs extra','Pagos extras','Deducciones','Ajustes','Salario Deposito','Estatus','Comentarios']);
     
     foreach ($rows as $row) {
-        fputcsv($out, [
+        fputcsv($out, [$row['persona_id'] ?? 0,
             ($row['nombres'] ?? '') . ' ' . ($row['apellidos'] ?? ''),
             $row['rol_nombre'] ?? '',
             $period['clave'] ?? '',
