@@ -438,6 +438,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $montoPago = 0.0;
         $montoPrima = 0.0;
         $primaPct = 0.0;
+        $salariominimo =0.0;
+
+        $primaPct = app_config_float($configs, 'vacaciones_prima_porcentaje', 25.0);
+        $salariominimo = app_config_float($configs, 'nomina_salario_minimo_diario', 0.0);
 
         if ($fechaInicio === '') {
             $messages['error'] = 'Captura la fecha del movimiento de vacaciones.';
@@ -445,10 +449,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $messages['error'] = 'Captura un rango y número de días válidos para vacaciones.';
         } elseif (in_array($tipo, ['AJUSTE_FAVOR', 'AJUSTE_CONTRA'], true) && $dias <= 0) {
             $messages['error'] = 'Captura los días del ajuste.';
+         } elseif (in_array($tipo, ['P_PRIMA'], true) && $dias <= 0) {
+            $messages['error'] = 'Captura los días.';
         } elseif ($tipo === 'NOTA' && $notas === '') {
             $messages['error'] = 'Captura una nota histórica para vacaciones.';
-        } elseif (!in_array($tipo, ['GOZADAS', 'PAGADAS', 'AJUSTE_FAVOR', 'AJUSTE_CONTRA', 'NOTA'], true)) {
-            $messages['error'] = 'Tipo de movimiento de vacaciones no válido.';
+        } elseif (!in_array($tipo, ['GOZADAS', 'PAGADAS', 'AJUSTE_FAVOR', 'AJUSTE_CONTRA', 'NOTA','P_PRIMA'], true)) {
+            $messages['error'] = 'Tipo de movimiento de vacaciones no válido.'.$tipo;
         } else {
             if ($tipo === 'AJUSTE_FAVOR') {
                 $tipoDb = 'AJUSTE';
@@ -462,10 +468,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $tipoDb = 'NOTA';
                 $dias = 0.0;
                 $fechaFin = $fechaInicio;
-            } else {
-                $primaPct = app_config_float($configs, 'vacaciones_prima_porcentaje', 25.0);
+            } elseif ($tipo === 'P_PRIMA') {
+                $fechaFin = $fechaInicio;
+                $montoPago = 0.0;
+                $montoPrima = $salariominimo * ($primaPct / 100) * $dias ;
+            }elseif ($tipo === 'PAGADAS') {
                 $montoPago = $dias * app_salary_diario($personal, $configs);
-                $montoPrima = $montoPago * ($primaPct / 100);
+                $montoPrima = 0.0;
+            }else {
+                $montoPago = 0.0;
+                $montoPrima = 0.0;
             }
 
             $sql = "
@@ -692,8 +704,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $vacacionesDisponiblesRec = app_recalculate_vacation_balance($conexion, $personalId, $configs);
 $vacationSummary = app_vacation_summary($conexion, $personalId, $configs);
-$vacacionesDisponibles = (float)$vacationSummary['balance_gozadas'];
-$vacacionesDisponiblesPago = (float)$vacationSummary['balance_pagadas'];
+$vacacionesDisponibles = (float)$vacationSummary['balance'];
+$vacacionesDisponiblesPrima = (float)$vacationSummary['balance_prima'];
 $saldoCaja = app_get_savings_balance($conexion, $personalId);
 $poolDisponible = app_total_savings_pool($conexion);
 $capacidadPrestamo = app_get_prestamo_capacidad($personal, $poolDisponible, $configs);
@@ -748,7 +760,7 @@ app_render_alerts($messages);
             <div class="<?php echo $vacacionesDisponibles < 0 ? 'text-danger' : 'text-muted'; ?>">
                 <?php echo $vacacionesDisponibles < 0 ? 'saldo sobregirado' : 'días'; ?>
             </div> 
-            <div class="summary-value">Por Pagar: <?php echo app_number($vacacionesDisponiblesPago); ?></div>
+            <div class="summary-value">Por Prima: <?php echo app_number($vacacionesDisponiblesPrima); ?></div>
             <div class="<?php echo $vacacionesDisponibles < 0 ? 'text-danger' : 'text-muted'; ?>">
                 <?php echo $vacacionesDisponibles < 0 ? 'saldo sobregirado' : 'días'; ?>
             </div>
@@ -1264,6 +1276,7 @@ app_render_alerts($messages);
                             <select name="tipo_vacacion" id="tipo_vacacion" class="form-select">
                                 <option value="GOZADAS">Vacaciones gozadas</option>
                                 <option value="PAGADAS">Vacaciones pagadas</option>
+                                <option value="P_PRIMA">Pago Prima</option>
                                 <option value="AJUSTE_FAVOR">Ajuste a favor</option>
                                 <option value="AJUSTE_CONTRA">Ajuste en contra</option>
                                 <option value="NOTA">Nota histórica</option>
@@ -1314,6 +1327,9 @@ app_render_alerts($messages);
                                     $impacto = -1 * (float)$row['dias'];
                                     $badge = 'bg-primary';
                                 } elseif ($tipoMovimiento === 'PAGADAS') {
+                                    $impacto = -1 * (float)$row['dias'];
+                                    $badge = 'bg-info';
+                                }elseif ($tipoMovimiento === 'P_PRIMA') {
                                     $impacto = -1 * (float)$row['dias'];
                                     $badge = 'bg-info';
                                 } elseif ($tipoMovimiento === 'AJUSTE') {

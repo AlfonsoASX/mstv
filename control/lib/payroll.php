@@ -271,9 +271,11 @@ function app_vacation_summary(mysqli $conexion, int $personalId, array $configs,
             'generated' => 0.0,
             'gozadas' => 0.0,
             'pagadas' => 0.0,
+            'prima' => 0.0,
             'ajustes' => 0.0,
             'notas' => 0,
             'balance' => 0.0,
+            'balance_prima' => 0.0,
             'years' => 0,
         ];
     }
@@ -284,12 +286,13 @@ function app_vacation_summary(mysqli $conexion, int $personalId, array $configs,
         'generated' => $generated,
         'gozadas' => 0.0,
         'pagadas' => 0.0,
+        'prima' => 0.0,
         'ajustes' => 0.0,
         'notas' => 0,
         'balance' => $generated,
         'years' => $years,
     ];
-
+ 
     $rows = app_db_all(
         $conexion,
         "SELECT tipo, dias, estado
@@ -310,6 +313,9 @@ function app_vacation_summary(mysqli $conexion, int $personalId, array $configs,
             case 'PAGADAS':
                 $summary['pagadas'] += $dias;
                 break;
+            case 'P_PRIMA':
+                $summary['prima'] += $dias;
+                break;
             case 'AJUSTE':
                 $summary['ajustes'] += $dias;
                 break;
@@ -318,9 +324,9 @@ function app_vacation_summary(mysqli $conexion, int $personalId, array $configs,
                 break;
         }
     }
-
-    $summary['balance_gozadas'] = $summary['generated'] - $summary['gozadas'] + $summary['ajustes'];
-    $summary['balance_pagadas'] = $summary['generated'] - $summary['pagadas'] + $summary['ajustes'];
+    
+    $summary['balance'] = $summary['generated'] - $summary['gozadas'] - $summary['pagadas'] + $summary['ajustes'];
+    $summary['balance_prima'] = $summary['generated'] - $summary['prima'] + $summary['ajustes'];
 
     return $summary;
 }
@@ -329,10 +335,10 @@ function app_recalculate_vacation_balance(mysqli $conexion, int $personalId, arr
 {
     $referenceDate = $referenceDate ?: date('Y-m-d');
     $summary = app_vacation_summary($conexion, $personalId, $configs, $referenceDate);
-    $balance_gozadas = (float)$summary['balance_gozadas'];
-    $balance_pagadas = (float)$summary['balance_pagadas'];
-    $balance['gozadas'] = $balance_gozadas;
-    $balance['pagadas'] = $balance_pagadas;
+    $balance_dias = (float)$summary['balance'];
+    $balance_prima = (float)$summary['balance_prima'];
+    $balance['balance'] = $balance_dias;
+    $balance['prima'] = $balance_prima;
 
     $sql = "
         UPDATE personal
@@ -342,8 +348,9 @@ function app_recalculate_vacation_balance(mysqli $conexion, int $personalId, arr
         WHERE id = ?
     ";
 
+    
     if ($stmt = mysqli_prepare($conexion, $sql)) {
-        mysqli_stmt_bind_param($stmt, 'ddsi', $balance_gozadas, $balance_pagadas, $referenceDate, $personalId);
+        mysqli_stmt_bind_param($stmt, 'ddsi', $balance_dias, $balance_prima, $referenceDate, $personalId);
         mysqli_stmt_execute($stmt);
         mysqli_stmt_close($stmt);
     }
