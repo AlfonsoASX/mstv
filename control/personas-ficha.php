@@ -454,7 +454,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($tipo === 'NOTA' && $notas === '') {
             $messages['error'] = 'Captura una nota histórica para vacaciones.';
         } elseif (!in_array($tipo, ['GOZADAS', 'PAGADAS', 'AJUSTE_FAVOR', 'AJUSTE_CONTRA', 'NOTA','P_PRIMA'], true)) {
-            $messages['error'] = 'Tipo de movimiento de vacaciones no válido.'.$tipo;
+            $messages['error'] = 'Tipo de movimiento de vacaciones no válido.';
         } else {
             if ($tipo === 'AJUSTE_FAVOR') {
                 $tipoDb = 'AJUSTE';
@@ -473,7 +473,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $montoPago = 0.0;
                 $montoPrima = $salariominimo * ($primaPct / 100) * $dias ;
             }elseif ($tipo === 'PAGADAS') {
-                $montoPago = $dias * app_salary_diario($personal, $configs);
+                $montoPago = $dias * $salariominimo;
                 $montoPrima = 0.0;
             }else {
                 $montoPago = 0.0;

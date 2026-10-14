@@ -216,7 +216,7 @@ function obtener_turno_actual(mysqli $conexion, int $personalId, ?int $turnoId =
 
     $sql .= "
         ORDER BY
-            ABS(TIMESTAMPDIFF(MINUTE, NOW(), t.hora_inicio)),
+            (ABS(TIMESTAMPDIFF(MINUTE, NOW(), t.hora_inicio)) + IF(t.estado = 'PROGRAMADO',360,0)),
             t.hora_inicio ASC
         LIMIT 1
     ";
