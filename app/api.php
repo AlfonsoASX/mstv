@@ -356,6 +356,7 @@ function obtener_ultimo_registro_turno_supervisor(mysqli $conexion,  int $person
         SELECT id, tipo_evento, fecha_hora, estado
         FROM registros_asistencia
         WHERE  personal_id = ?
+          AND tipo_evento IN ('ENTRADA', 'SALIDA')
         ORDER BY fecha_hora DESC, id DESC
         LIMIT 1
     ";
@@ -771,8 +772,8 @@ switch ($action) {
             $tipoEvento = 'ENTRADA';
         }
 
-        if (!in_array($tipoEvento, ['ENTRADA', 'SALIDA'], true)) {
-            responder(400, 'error', 'Solo se permiten registros de entrada y salida.');
+        if (!in_array($tipoEvento, ['ENTRADA', 'SALIDA', 'RONDIN'], true)) {
+            responder(400, 'error', 'El tipo de registro no es válido.');
         }
 
         $personal = obtener_personal($conexion, $personalId);
@@ -781,8 +782,17 @@ switch ($action) {
         }
 
         $esSupervisor = es_rol_supervisor($personal);
+        $esRondin = $tipoEvento === 'RONDIN';
+        if ($esRondin && !$esSupervisor) {
+            responder(403, 'error', 'Solo los supervisores pueden registrar rondines.');
+        }
+
         $sitioIdSeleccionado = isset($data['sitio_id']) ? (int)$data['sitio_id'] : 0;
-        $turno = obtener_turno_actual($conexion, $personalId, $turnoId);
+        $turno = $esRondin ? null : obtener_turno_actual($conexion, $personalId, $turnoId);
+        if ($tipoEvento === 'ENTRADA' && $esSupervisor && (!$turno || (int)($turno['turno_id'] ?? 0) <= 0)) {
+            responder(409, 'error', 'Necesitas un turno asignado para registrar entrada.');
+        }
+
         if (!$turno) {
             if ($esSupervisor) {
                 $turno = [
@@ -804,7 +814,9 @@ switch ($action) {
         }
 
         // $siguienteEsperado = ((int)($turno['turno_id'] ?? 0) > 0) ? evento_siguiente($ultimoRegistro) : 'ENTRADA';
-        if ($esSupervisor) {
+        if ($esRondin) {
+            $siguienteEsperado = 'ENTRADA';
+        } elseif ($esSupervisor) {
             // Supervisores: siempre calcular el siguiente evento según el último registro
             $ultimoRegistro = obtener_ultimo_registro_turno_supervisor($conexion, $personalId);
             $siguienteEsperado = evento_siguiente($ultimoRegistro);
@@ -819,7 +831,25 @@ switch ($action) {
         $anticipacionMinutos = app_config_int($configs, 'checadas_minutos_anticipacion', 20);
 
         $sitioRegistro = null;
-        if ($esSupervisor && $tipoEvento === 'SALIDA') {
+        if ($esRondin) {
+            if ($sitioIdSeleccionado <= 0) {
+                responder(409, 'error', 'Debes seleccionar el sitio donde estás registrando el rondín.');
+            }
+
+            $sitioRegistro = obtener_sitio($conexion, $sitioIdSeleccionado);
+            if (!$sitioRegistro || (int)$sitioRegistro['esta_activo'] !== 1) {
+                responder(404, 'error', 'No se encontró un sitio activo para el rondín.');
+            }
+
+            if (
+                $sitioRegistro['latitud'] === null
+                || $sitioRegistro['longitud'] === null
+                || $sitioRegistro['radio_geocerca'] === null
+                || (float)$sitioRegistro['radio_geocerca'] <= 0
+            ) {
+                responder(409, 'error', 'El sitio seleccionado no tiene una geocerca válida configurada.');
+            }
+        } elseif ($esSupervisor && $tipoEvento === 'SALIDA') {
             if ($sitioIdSeleccionado > 0) {
                 $sitioRegistro = obtener_sitio($conexion, $sitioIdSeleccionado);
                 if (!$sitioRegistro) {
@@ -839,7 +869,7 @@ switch ($action) {
             responder(409, 'error', 'Debes seleccionar el sitio donde estás registrando la checada.');
         }
 
-        if ($siguienteEsperado === 'ENTRADA' && !$esSupervisor && !entrada_en_ventana($turno, $anticipacionMinutos)) {
+        if (!$esRondin && $siguienteEsperado === 'ENTRADA' && !$esSupervisor && !entrada_en_ventana($turno, $anticipacionMinutos)) {
             $puedeDesde = '';
             $tsInicio = strtotime((string)$turno['hora_inicio']);
             if ($tsInicio !== false) {
@@ -849,7 +879,7 @@ switch ($action) {
             responder(409, 'error', 'Todavía no puedes registrar entrada. Puedes checar desde ' . ($puedeDesde ?: $anticipacionMinutos . ' minutos antes del turno') . '.');
         }
 
-        if (!$esSupervisor && $tipoEvento !== $siguienteEsperado) {
+        if (!$esRondin && !$esSupervisor && $tipoEvento !== $siguienteEsperado) {
             if ($tipoEvento === 'SALIDA') {
                 responder(409, 'error', 'Primero debes registrar tu entrada del turno asignado.');
             }
@@ -858,7 +888,7 @@ switch ($action) {
         }
 
         
-        if ($esSupervisor && $tipoEvento !== $siguienteEsperado) {
+        if (!$esRondin && $esSupervisor && $tipoEvento !== $siguienteEsperado) {
             if ($tipoEvento === 'SALIDA') {
                 responder(409, 'error', 'Primero debes registrar tu entrada.');
             }
@@ -912,9 +942,9 @@ switch ($action) {
         }
 
         $sitioId = (int)($sitioRegistro['id'] ?? $turno['sitio_id'] ?? 0);
-        $turnoIdReal = (int)($turno['turno_id'] ?? 0);
+        $turnoIdReal = $esRondin ? 0 : (int)($turno['turno_id'] ?? 0);
 
-        if ($esSupervisor && $turnoIdReal <= 0) {
+        if (!$esRondin && $esSupervisor && $turnoIdReal <= 0) {
             $estadoTurno = $tipoEvento === 'ENTRADA' ? 'EN_PROGRESO' : 'COMPLETADO';
             $sqlCrearTurno = "
                 INSERT INTO turnos (sitio_id, personal_id, hora_inicio, hora_fin, estado)
@@ -969,11 +999,29 @@ switch ($action) {
         $registroId = (int)mysqli_insert_id($conexion);
         mysqli_stmt_close($stmt);
 
-        if ($turnoIdReal > 0) {
+        if (!$esRondin && $turnoIdReal > 0) {
             if ($tipoEvento === 'ENTRADA') {
                 $sqlTurno = "
                     UPDATE turnos
                     SET estado = 'EN_PROGRESO',
+                        retardo_minutos = IF(
+                            hora_entrada_real IS NULL,
+                            IF(
+                                TIMESTAMPDIFF(MINUTE, hora_inicio, NOW()) > 15,
+                                TIMESTAMPDIFF(MINUTE, hora_inicio, NOW()),
+                                0
+                            ),
+                            retardo_minutos
+                        ),
+                        retardo_horas_cobradas = IF(
+                            hora_entrada_real IS NULL,
+                            IF(
+                                TIMESTAMPDIFF(MINUTE, hora_inicio, NOW()) > 15,
+                                CEIL((TIMESTAMPDIFF(MINUTE, hora_inicio, NOW()) - 15) / 60),
+                                0
+                            ),
+                            retardo_horas_cobradas
+                        ),
                         hora_entrada_real = COALESCE(hora_entrada_real, NOW())
                     WHERE id = ?
                 ";
@@ -981,6 +1029,24 @@ switch ($action) {
                 $sqlTurno = "
                     UPDATE turnos
                     SET estado = 'COMPLETADO',
+                        extra_minutos = IF(
+                            hora_salida_real IS NULL,
+                            IF(
+                                TIMESTAMPDIFF(MINUTE, hora_fin, NOW()) > 15,
+                                TIMESTAMPDIFF(MINUTE, hora_fin, NOW()),
+                                0
+                            ),
+                            extra_minutos
+                        ),
+                        extra_horas_cobrar = IF(
+                            hora_salida_real IS NULL,
+                            IF(
+                                TIMESTAMPDIFF(MINUTE, hora_fin, NOW()) > 15,
+                                CEIL((TIMESTAMPDIFF(MINUTE, hora_fin, NOW()) - 15) / 60),
+                                0
+                            ),
+                            extra_horas_cobrar
+                        ),
                         hora_salida_real = COALESCE(hora_salida_real, NOW())
                     WHERE id = ?
                 ";

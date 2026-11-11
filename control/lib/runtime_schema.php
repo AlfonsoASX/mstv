@@ -15,7 +15,7 @@ function app_ensure_schema_once(mysqli $conexion, int $ttlSeconds = 86400): void
         return;
     }
 
-    $schemaVersion = '2026-06-02-facial-descriptor-v1';
+    $schemaVersion = '2026-10-24-overtime-status-v1';
     $marker = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR)
         . DIRECTORY_SEPARATOR
         . 'mstv_control_schema_' . sha1(__DIR__ . '|' . $schemaVersion) . '.ready';
@@ -60,6 +60,17 @@ function app_ensure_schema(mysqli $conexion): void
     app_schema_add_column_if_missing($conexion, 'personal', 'facial_descriptor_json', 'LONGTEXT NULL AFTER `url_foto_base`');
     app_schema_add_column_if_missing($conexion, 'personal', 'facial_descriptor_model', "VARCHAR(80) NULL AFTER `facial_descriptor_json`");
     app_schema_add_column_if_missing($conexion, 'personal', 'facial_descriptor_updated_at', 'DATETIME NULL AFTER `facial_descriptor_model`');
+    app_schema_add_column_if_missing($conexion, 'personal', 'nivel_academico', 'VARCHAR(100) NULL');
+    app_schema_add_column_if_missing($conexion, 'personal', 'departamento', 'VARCHAR(100) NULL');
+    app_schema_add_column_if_missing($conexion, 'personal', 'actividad', 'VARCHAR(150) NULL');
+    app_schema_add_column_if_missing($conexion, 'personal', 'descripcion_actividades', 'TEXT NULL');
+    app_schema_add_column_if_missing($conexion, 'personal', 'porta_armas', 'TINYINT(1) NOT NULL DEFAULT 0');
+    app_schema_add_column_if_missing($conexion, 'turnos', 'retardo_minutos', 'INT NOT NULL DEFAULT 0');
+    app_schema_add_column_if_missing($conexion, 'turnos', 'retardo_horas_cobradas', 'INT NOT NULL DEFAULT 0');
+    app_schema_add_column_if_missing($conexion, 'turnos', 'extra_minutos', 'INT NOT NULL DEFAULT 0');
+    app_schema_add_column_if_missing($conexion, 'turnos', 'extra_horas_cobrar', 'INT NOT NULL DEFAULT 0');
+    app_schema_add_column_if_missing($conexion, 'turnos', 'estatus_retardo_horas', "ENUM('PENDIENTE','ACEPTADO','RECHAZADO') NOT NULL DEFAULT 'PENDIENTE'");
+    app_schema_add_column_if_missing($conexion, 'turnos', 'estatus_extra_horas', "ENUM('PENDIENTE','ACEPTADO','RECHAZADO') NOT NULL DEFAULT 'PENDIENTE'");
 
     $queries = [
         //"ALTER TABLE personal ADD COLUMN IF NOT EXISTS numero_empleado VARCHAR(30) NULL AFTER id",
@@ -124,6 +135,7 @@ function app_ensure_schema(mysqli $conexion): void
         // "ALTER TABLE registros_asistencia ADD COLUMN IF NOT EXISTS puntaje_facial DECIMAL(5,2) NULL AFTER url_selfie",
         // "ALTER TABLE registros_asistencia ADD COLUMN IF NOT EXISTS verificado_vida TINYINT(1) DEFAULT 0 AFTER puntaje_facial",
         "ALTER TABLE registros_asistencia MODIFY COLUMN estado ENUM('ACEPTADO','RECHAZADO_ROSTRO','RECHAZADO_GPS','PENDIENTE_REVISION') DEFAULT 'ACEPTADO'",
+        "ALTER TABLE registros_asistencia MODIFY COLUMN tipo_evento ENUM('ENTRADA','SALIDA','RONDIN') NOT NULL",
 
         "CREATE TABLE IF NOT EXISTS nomina_periodos (
             id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -291,7 +303,7 @@ function app_ensure_schema(mysqli $conexion): void
             KEY idx_vacaciones_personal (personal_id, fecha_inicio)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
 
-        "ALTER TABLE vacaciones_movimientos MODIFY COLUMN tipo ENUM('GOZADAS','PAGADAS','AJUSTE','NOTA') NOT NULL DEFAULT 'GOZADAS'",
+        "ALTER TABLE vacaciones_movimientos MODIFY COLUMN tipo ENUM('GOZADAS','PAGADAS','AJUSTE','NOTA','P_PRIMA') NOT NULL DEFAULT 'GOZADAS'",
         //"ALTER TABLE vacaciones_movimientos ADD COLUMN IF NOT EXISTS origen VARCHAR(50) NULL AFTER notas",
         //"ALTER TABLE vacaciones_movimientos ADD COLUMN IF NOT EXISTS referencia VARCHAR(80) NULL AFTER origen",
 

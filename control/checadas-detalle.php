@@ -32,6 +32,7 @@ function labelTipoEvento($tipo) {
     switch ($tipo) {
         case 'ENTRADA': return 'Entrada';
         case 'SALIDA':  return 'Salida';
+        case 'RONDIN':  return 'Rondín';
         default:        return $tipo;
     }
 }

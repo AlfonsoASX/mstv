@@ -13,8 +13,88 @@ function limpiar($txt) {
     return trim(htmlspecialchars($txt, ENT_QUOTES, 'UTF-8'));
 }
 
+function renderHoursReview(array $row, string $tipo, string $requestUri): string {
+    $isRetardo = $tipo === 'retardo';
+    $hours = (int)($row[$isRetardo ? 'retardo_horas' : 'extra_horas'] ?? 0);
+    $status = strtoupper((string)($row[$isRetardo ? 'estatus_retardo_horas' : 'estatus_extra_horas'] ?? 'PENDIENTE'));
+    $turnoId = (int)($row['turno_id'] ?? 0);
+
+    if ($hours <= 0) {
+        return '<span>' . $hours . '</span>';
+    }
+
+    if ($status !== 'PENDIENTE') {
+        $badgeClass = $status === 'ACEPTADO'
+            ? 'bg-success'
+            : ($status === 'RECHAZADO' ? 'bg-danger' : 'bg-secondary');
+        return '<span class="badge ' . $badgeClass . '">' . $hours . ' h</span>';
+    }
+
+    if ($turnoId <= 0) {
+        return '<span>' . $hours . ' h</span>';
+    }
+
+    $label = $isRetardo ? 'Retardo' : 'Extra';
+    $html = '<div class="d-flex flex-column align-items-start gap-1">'
+        . '<span>' . $hours . ' h · ' . $label . '</span>'
+        . '<div class="d-flex gap-1">';
+    foreach ([
+        'ACEPTADO' => ['fa-check', 'Aceptar'],
+        'RECHAZADO' => ['fa-xmark', 'Rechazar'],
+    ] as $statusValue => [$iconClass, $buttonLabel]) {
+        $buttonClass = $statusValue === 'ACEPTADO' ? 'btn-success' : 'btn-danger';
+        $html .= '<form method="post" action="' . htmlspecialchars($requestUri) . '">'
+            . '<input type="hidden" name="accion" value="actualizar_estatus_horas">'
+            . '<input type="hidden" name="turno_id" value="' . $turnoId . '">'
+            . '<input type="hidden" name="tipo_horas" value="' . $tipo . '">'
+            . '<input type="hidden" name="estatus_horas" value="' . $statusValue . '">'
+            . '<button type="submit" class="btn btn-sm ' . $buttonClass . '" aria-label="' . $buttonLabel . '" title="' . $buttonLabel . '">'
+            . '<i class="fa-solid ' . $iconClass . '" aria-hidden="true"></i></button>'
+            . '</form>';
+    }
+    return $html . '</div></div>';
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
-    if ($_POST['accion'] === 'aprobar_checada') {
+    if ($_POST['accion'] === 'actualizar_estatus_horas') {
+        $turnoId = isset($_POST['turno_id']) ? (int)$_POST['turno_id'] : 0;
+        $tipoHoras = isset($_POST['tipo_horas']) && is_string($_POST['tipo_horas']) ? $_POST['tipo_horas'] : '';
+        $estatusHoras = isset($_POST['estatus_horas']) && is_string($_POST['estatus_horas']) ? $_POST['estatus_horas'] : '';
+        $columns = [
+            'retardo' => ['estatus_retardo_horas', 'retardo_horas_cobradas'],
+            'extra' => ['estatus_extra_horas', 'extra_horas_cobrar'],
+        ];
+
+        if ($turnoId <= 0 || !isset($columns[$tipoHoras]) || !in_array($estatusHoras, ['ACEPTADO', 'RECHAZADO'], true)) {
+            $mensaje_error = 'Los datos para actualizar el estatus de horas no son válidos.';
+        } else {
+            [$statusColumn, $hoursColumn] = $columns[$tipoHoras];
+            $sql = "UPDATE turnos SET `$statusColumn` = ? WHERE id = ? AND `$statusColumn` = 'PENDIENTE' AND `$hoursColumn` > 0";
+            if ($stmt = mysqli_prepare($conexion, $sql)) {
+                mysqli_stmt_bind_param($stmt, 'si', $estatusHoras, $turnoId);
+                if (mysqli_stmt_execute($stmt)) {
+                    $actualizado = mysqli_stmt_affected_rows($stmt) > 0;
+                    mysqli_stmt_close($stmt);
+                    if ($actualizado) {
+                        $redirectUrl = $_SERVER['PHP_SELF'];
+                        if (!empty($_SERVER['QUERY_STRING'])) {
+                            $redirectUrl .= '?' . $_SERVER['QUERY_STRING'] . '&horas_actualizadas=1';
+                        } else {
+                            $redirectUrl .= '?horas_actualizadas=1';
+                        }
+                        header('Location: ' . $redirectUrl);
+                        exit;
+                    }
+                    $mensaje_error = 'El turno no tiene horas pendientes para actualizar.';
+                } else {
+                    mysqli_stmt_close($stmt);
+                    $mensaje_error = 'No fue posible actualizar el estatus de las horas.';
+                }
+            } else {
+                $mensaje_error = 'Error interno al preparar la actualización del estatus de horas.';
+            }
+        }
+    } elseif ($_POST['accion'] === 'aprobar_checada') {
         $registro_id = isset($_POST['registro_id']) ? (int)$_POST['registro_id'] : 0;
         if ($registro_id > 0) {
             $sql_aprobar = "UPDATE registros_asistencia SET estado = 'ACEPTADO' WHERE id = ?";
@@ -140,6 +220,9 @@ if (isset($_GET['salida_guardada'])) {
 if (isset($_GET['falta_guardada'])) {
     $mensaje_exito = 'La falta se registró correctamente.';
 }
+if (isset($_GET['horas_actualizadas'])) {
+    $mensaje_exito = 'El estatus de las horas se actualizó correctamente.';
+}
 
 // =======================
 //  CARGAR CATÁLOGOS
@@ -181,9 +264,17 @@ $personal_id = isset($_GET['personal_id']) ? (int)$_GET['personal_id'] : 0;
 $tipo_evento = isset($_GET['tipo_evento']) ? limpiar($_GET['tipo_evento']) : '';
 $estado      = isset($_GET['estado']) ? limpiar($_GET['estado']) : '';
 $buscar      = isset($_GET['buscar']) ? limpiar($_GET['buscar']) : '';
+$retardoHorasFiltro = isset($_GET['retardo_horas']) && is_scalar($_GET['retardo_horas'])
+    && in_array((string)$_GET['retardo_horas'], ['si', 'no'], true)
+    ? (string)$_GET['retardo_horas']
+    : '';
+$extraHorasFiltro = isset($_GET['extra_horas']) && is_scalar($_GET['extra_horas'])
+    && in_array((string)$_GET['extra_horas'], ['si', 'no'], true)
+    ? (string)$_GET['extra_horas']
+    : '';
 
 // Validaciones simples
-$tipos_validos   = ['ENTRADA','SALIDA'];
+$tipos_validos   = ['ENTRADA','SALIDA','RONDIN'];
 $estados_validos = ['ACEPTADO','RECHAZADO_ROSTRO','RECHAZADO_GPS','PENDIENTE_REVISION','FALTA'];
 
 if (!in_array($tipo_evento, $tipos_validos)) {
@@ -192,6 +283,8 @@ if (!in_array($tipo_evento, $tipos_validos)) {
 if (!in_array($estado, $estados_validos)) {
     $estado = '';
 }
+$esFiltroRondin = $tipo_evento === 'RONDIN';
+$columnaFechaFiltro = $esFiltroRondin ? 'ra.fecha_hora' : 't.hora_inicio';
 
 // =======================
 //  CONDICIONES SQL
@@ -213,14 +306,24 @@ if ($estado !== '') {
     $est_esc = mysqli_real_escape_string($conexion, $estado);
     $cond .= " AND COALESCE(ra.estado, 'FALTA') = '$est_esc' ";
 }
+if ($retardoHorasFiltro === 'si') {
+    $cond .= " AND COALESCE(t.retardo_horas_cobradas, 0) > 0 ";
+} elseif ($retardoHorasFiltro === 'no') {
+    $cond .= " AND COALESCE(t.retardo_horas_cobradas, 0) = 0 ";
+}
+if ($extraHorasFiltro === 'si') {
+    $cond .= " AND COALESCE(t.extra_horas_cobrar, 0) > 0 ";
+} elseif ($extraHorasFiltro === 'no') {
+    $cond .= " AND COALESCE(t.extra_horas_cobrar, 0) = 0 ";
+}
 
 if ($fecha_desde !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha_desde)) {
     $fd_esc = mysqli_real_escape_string($conexion, $fecha_desde . " 00:00:00");
-    $cond .= " AND t.hora_inicio >= '$fd_esc' ";
+    $cond .= " AND $columnaFechaFiltro >= '$fd_esc' ";
 }
 if ($fecha_hasta !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha_hasta)) {
     $fh_esc = mysqli_real_escape_string($conexion, $fecha_hasta . " 23:59:59");
-    $cond .= " AND t.hora_inicio <= '$fh_esc' ";
+    $cond .= " AND $columnaFechaFiltro <= '$fh_esc' ";
 }
 if ($buscar !== '') {
     $buscarEsc = mysqli_real_escape_string($conexion, $buscar);
@@ -251,7 +354,20 @@ $total_rechazadas  = 0;
 $total_pendientes  = 0;
 $total_faltas  = 0;
 
-$sql_resumen = "
+$sql_resumen = $esFiltroRondin ? "
+    SELECT
+        COUNT(*) AS total,
+        SUM(ra.estado = 'ACEPTADO') AS aceptadas,
+        SUM(ra.estado <> 'ACEPTADO') AS rechazadas,
+        SUM(ra.estado = 'PENDIENTE_REVISION') AS pendientes,
+        0 AS faltas
+    FROM registros_asistencia ra
+    INNER JOIN personal p ON p.id = ra.personal_id
+    INNER JOIN sitios s ON s.id = ra.sitio_id
+    LEFT JOIN turnos t ON t.id = ra.turno_id
+    WHERE 1 = 1
+    $cond
+" : "
     SELECT 
         COUNT(*) AS total,
         SUM(ra.estado = 'ACEPTADO') AS aceptadas,
@@ -262,7 +378,7 @@ $sql_resumen = "
     LEFT JOIN registros_asistencia ra ON t.id = ra.turno_id 
     INNER JOIN personal p ON p.id = t.personal_id
     INNER JOIN sitios s   ON s.id = t.sitio_id
-    WHERE  t.hora_inicio <= NOW()
+    WHERE  t.hora_inicio <= NOW() AND t.estado<>'CANCELADO'
     $cond
 ";
 
@@ -289,7 +405,46 @@ if (isset($_GET['export_csv']) && $_GET['export_csv'] == '1') {
     $sql_limit_list = " ";
 }
 
-$sql_lista = "
+$sql_lista = $esFiltroRondin ? "
+    SELECT
+        ra.id,
+        ra.turno_id,
+        ra.personal_id,
+        ra.sitio_id,
+        ra.tipo_evento,
+        ra.fecha_hora,
+        ra.latitud,
+        ra.longitud,
+        ra.esta_dentro_geocerca,
+        ra.url_selfie,
+        ra.puntaje_facial,
+        ra.verificado_vida,
+        ra.comentarios,
+        ra.estado,
+        p.id AS personal_id,
+        p.nombres,
+        p.apellidos,
+        CONCAT(SUBSTRING(YEAR(p.fecha_contratacion), 3, 2), LPAD(p.id, 4, '0')) AS no_empleado,
+        p.fecha_contratacion,
+        s.nombre AS sitio_nombre,
+        t.hora_inicio AS hora_programada_entrada,
+        t.hora_entrada_real AS hora_real_entrada,
+        t.hora_fin AS hora_programada_salida,
+        t.hora_salida_real AS hora_real_salida,
+        COALESCE(t.retardo_horas_cobradas, 0) AS retardo_horas,
+        COALESCE(t.extra_horas_cobrar, 0) AS extra_horas,
+        COALESCE(t.estatus_retardo_horas, 'PENDIENTE') AS estatus_retardo_horas,
+        COALESCE(t.estatus_extra_horas, 'PENDIENTE') AS estatus_extra_horas,
+        t.estado AS turno_estado
+    FROM registros_asistencia ra
+    INNER JOIN personal p ON p.id = ra.personal_id
+    INNER JOIN sitios s ON s.id = ra.sitio_id
+    LEFT JOIN turnos t ON t.id = ra.turno_id
+    WHERE 1 = 1
+    $cond
+    ORDER BY ra.fecha_hora DESC
+    $sql_limit_list
+" : "
     SELECT 
         ra.id, 
         COALESCE(ra.turno_id, t.id) AS turno_id,
@@ -333,13 +488,17 @@ $sql_lista = "
             ORDER BY r3.fecha_hora DESC, r3.id DESC
             LIMIT 1
         )) AS hora_real_salida
+        ,COALESCE(t.retardo_horas_cobradas, 0) AS retardo_horas
+        ,COALESCE(t.extra_horas_cobrar, 0) AS extra_horas
+        ,COALESCE(t.estatus_retardo_horas, 'PENDIENTE') AS estatus_retardo_horas
+        ,COALESCE(t.estatus_extra_horas, 'PENDIENTE') AS estatus_extra_horas
         ,t.estado as turno_estado
     FROM turnos t    
     LEFT JOIN registros_asistencia ra ON t.id = ra.turno_id 
     INNER JOIN personal p ON p.id = t.personal_id
     LEFT JOIN sitios s   ON s.id = ra.sitio_id
     LEFT JOIN sitios st ON st.id = t.sitio_id
-    WHERE  t.hora_inicio <= NOW()
+    WHERE  t.hora_inicio <= NOW() AND t.estado<>'CANCELADO'
     $cond    
     ORDER BY 6 DESC
     $sql_limit_list
@@ -366,7 +525,7 @@ if (isset($_GET['export_csv']) && $_GET['export_csv'] == '1') {
     header('Content-Disposition: attachment; filename="checadas-' . date('Ymd_His') . '.csv"');
 
     $output = fopen('php://output', 'w');
-    fputcsv($output, [ 'Turno', 'No. empleado', 'Nombre', 'Sitio', 'Fecha', 'Tipo', 'Hora programada entrada', 'Hora real entrada', 'Hora programada salida', 'Hora real salida', 'Estado', 'Comentario', 'Dentro geocerca', 'Puntaje facial', 'Liveness', 'URL selfie'], ',', '"', '\\');
+    fputcsv($output, [ 'Turno', 'No. empleado', 'Nombre', 'Sitio', 'Fecha', 'Tipo', 'Hora programada entrada', 'Hora real entrada', 'Hora programada salida', 'Hora real salida', 'Retardo (horas)', 'Estatus retardo', 'Horas extra', 'Estatus extra', 'Estado', 'Comentario', 'Dentro geocerca', 'Puntaje facial', 'Liveness', 'URL selfie'], ',', '"', '\\');
 
     foreach ($csv_rows as $row) {
         fputcsv($output, [
@@ -380,6 +539,10 @@ if (isset($_GET['export_csv']) && $_GET['export_csv'] == '1') {
             $row['hora_real_entrada'] ?? '',
             $row['hora_programada_salida'] ?? '',
             $row['hora_real_salida'] ?? '',
+            $row['retardo_horas'] ?? 0,
+            $row['estatus_retardo_horas'] ?? 'PENDIENTE',
+            $row['extra_horas'] ?? 0,
+            $row['estatus_extra_horas'] ?? 'PENDIENTE',
             $row['estado'] ?? '',
             $row['comentarios'] ?? '',
             ((int)($row['esta_dentro_geocerca'] ?? 0) === 1) ? 'Dentro' : 'Fuera',
@@ -669,6 +832,8 @@ function badgeEstado($estado) {
                         'personal_id' => $personal_id,
                         'tipo_evento' => $tipo_evento,
                         'estado' => $estado,
+                        'retardo_horas' => $retardoHorasFiltro,
+                        'extra_horas' => $extraHorasFiltro,
                         'export_csv' => 1,
                     ];
                     $export_url = 'checadas-lista.php?' . http_build_query(array_filter($export_qs, function ($value) {
@@ -745,6 +910,7 @@ function badgeEstado($estado) {
                                                 <option value="">Todos</option>
                                                 <option value="ENTRADA" <?php echo $tipo_evento=='ENTRADA'?'selected':''; ?>>Entrada</option>
                                                 <option value="SALIDA" <?php echo $tipo_evento=='SALIDA'?'selected':''; ?>>Salida</option>
+                                                <option value="RONDIN" <?php echo $tipo_evento=='RONDIN'?'selected':''; ?>>Rondín</option>
                                             </select>
                                         </div>
                                         <div class="mb-3">
@@ -756,6 +922,22 @@ function badgeEstado($estado) {
                                                 <option value="RECHAZADO_GPS" <?php echo $estado=='RECHAZADO_GPS'?'selected':''; ?>>Rechazado GPS</option>
                                                 <option value="PENDIENTE_REVISION" <?php echo $estado=='PENDIENTE_REVISION'?'selected':''; ?>>Pendiente revisión</option>
                                                 <option value="FALTA" <?php echo $estado=='FALTA'?'selected':''; ?>>Falta</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-2">
+                                            <label class="filter-label" for="filtro-retardo-horas">Retardo horas</label>
+                                            <select id="filtro-retardo-horas" name="retardo_horas" class="form-select form-select-sm">
+                                                <option value="" <?php echo $retardoHorasFiltro === '' ? 'selected' : ''; ?>>Todos</option>
+                                                <option value="si" <?php echo $retardoHorasFiltro === 'si' ? 'selected' : ''; ?>>Sí</option>
+                                                <option value="no" <?php echo $retardoHorasFiltro === 'no' ? 'selected' : ''; ?>>No</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="filter-label" for="filtro-extra-horas">Horas extra</label>
+                                            <select id="filtro-extra-horas" name="extra_horas" class="form-select form-select-sm">
+                                                <option value="" <?php echo $extraHorasFiltro === '' ? 'selected' : ''; ?>>Todos</option>
+                                                <option value="si" <?php echo $extraHorasFiltro === 'si' ? 'selected' : ''; ?>>Sí</option>
+                                                <option value="no" <?php echo $extraHorasFiltro === 'no' ? 'selected' : ''; ?>>No</option>
                                             </select>
                                         </div>
 
@@ -796,6 +978,8 @@ function badgeEstado($estado) {
                                                     <th>Guardia</th>
                                                     <th>Programada</th>
                                                     <th>Real</th>
+                                                    <th>Retardo (hrs)</th>
+                                                    <th>Extra (hrs)</th>
                                                     <th>Tipo</th>
                                                     <th>Estado</th>
                                                     <th>Geo</th>
@@ -809,7 +993,7 @@ function badgeEstado($estado) {
                                             <tbody>
                                                 <?php if (empty($checadas)): ?>
                                                     <tr>
-                                                        <td colspan="14" class="text-center text-muted py-3">
+                                                        <td colspan="16" class="text-center text-muted py-3">
                                                             No se encontraron checadas con los filtros actuales.
                                                         </td>
                                                     </tr>
@@ -837,6 +1021,8 @@ function badgeEstado($estado) {
                                                                     Salida: <?php echo app_datetime($c['hora_real_salida'] ?? null); ?>
                                                                 </small>
                                                             </td>
+                                                            <td><?php echo renderHoursReview($c, 'retardo', $_SERVER['REQUEST_URI']); ?></td>
+                                                            <td><?php echo renderHoursReview($c, 'extra', $_SERVER['REQUEST_URI']); ?></td>
                                                             <td>
                                                                 <?php
                                                                     $t = $c['tipo_evento'];
@@ -844,6 +1030,8 @@ function badgeEstado($estado) {
                                                                         echo '<span class="badge bg-primary">Entrada</span>';
                                                                     } elseif ($t == 'SALIDA') {
                                                                         echo '<span class="badge bg-info">Salida</span>';
+                                                                    } elseif ($t == 'RONDIN') {
+                                                                        echo '<span class="badge bg-dark">Rondín</span>';
                                                                     } else {
                                                                         echo '<span class="badge bg-dark">'.htmlspecialchars($t).'</span>';
                                                                     }
@@ -907,7 +1095,9 @@ function badgeEstado($estado) {
                                                                         </button>
                                                                     </form>
                                                                 <?php else: ?>
-                                                                    <?php if (empty($c['hora_real_entrada']) && empty($c['hora_real_salida']) && $c['turno_estado']!= 'FALTAJU' && $c['turno_estado']!= 'FALTAIN' ): ?>
+                                                                    <?php if ($c['tipo_evento'] === 'RONDIN'): ?>
+                                                                        <span class="text-muted small">-</span>
+                                                                    <?php elseif (empty($c['hora_real_entrada']) && empty($c['hora_real_salida']) && $c['turno_estado']!= 'FALTAJU' && $c['turno_estado']!= 'FALTAIN' ): ?>
                                                                         <button type="button"
                                                                                 class="btn btn-sm btn-danger"
                                                                                 data-bs-toggle="modal"

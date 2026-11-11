@@ -321,6 +321,10 @@
                 <i class="fa-solid fa-right-from-bracket"></i>
                 Registrar salida
             </button>
+            <button class="action-btn" id="btn-rondin" style="display:none;" onclick="iniciarChecada('RONDIN')">
+                <i class="fa-solid fa-person-walking"></i>
+                Registrar rondín
+            </button>
         </div>
  
     </div>
@@ -371,7 +375,7 @@
 
         <div id="paso-sitio" style="display:none; width:100%;">
             <i class="fa-solid fa-map-location-dot" style="font-size:48px; color:var(--primary-color); margin-bottom:16px;"></i>
-            <p>Selecciona el sitio donde estás registrando la checada.</p>
+            <p id="sitio-checada-instruccion">Selecciona el sitio donde estás registrando la checada.</p>
             <select id="select-sitio-checada"></select>
             <button class="btn-primary" id="btn-continuar-sitio" onclick="continuarTrasSeleccionSitio()">Continuar</button>
         </div>
@@ -478,6 +482,8 @@ async function login() {
         }
 
         currentUser = data.user;
+        document.getElementById('btn-rondin').style.display =
+            (currentUser.rol_nombre || '').toUpperCase().includes('SUPERVISOR') ? 'flex' : 'none';
         document.getElementById('dash-nombre').innerText = `Hola, ${currentUser.nombre_completo}`;
         document.getElementById('screen-login').classList.remove('active');
         document.getElementById('screen-dashboard').classList.add('active');
@@ -499,6 +505,7 @@ function logout() {
     detenerChatPolling();
     currentUser = null;
     currentTurno = null;
+    document.getElementById('btn-rondin').style.display = 'none';
     activeScreen = 'dashboard';
     document.getElementById('password').value = '';
     document.getElementById('bottom-nav').style.display = 'none';
@@ -551,6 +558,7 @@ async function cargarDashboard() {
         const data = await response.json();
 
         const esSupervisor = (currentUser?.rol_nombre || '').toUpperCase().includes('SUPERVISOR');
+        document.getElementById('btn-rondin').style.display = esSupervisor ? 'flex' : 'none';
 
         if (data.status === 'success' && data.turno) {
             currentTurno = data.turno;
@@ -561,11 +569,12 @@ async function cargarDashboard() {
             document.getElementById('dash-salida-real').innerText = formatDateTime(currentTurno.hora_real_salida);
             document.getElementById('dash-ultimo-evento').innerText = currentTurno.ultimo_evento || 'Sin registros';
             const turnoSinAsignar = esSupervisor && (!currentTurno.turno_id || currentTurno.turno_id === 0);
-            const puedeEntrada = currentTurno.puede_registrar_entrada !== false || turnoSinAsignar;
-            document.getElementById('btn-entrada').disabled = !puedeEntrada && (currentTurno.siguiente_evento_sugerido || 'ENTRADA') === 'ENTRADA';
+            const puedeEntrada = !turnoSinAsignar && currentTurno.puede_registrar_entrada !== false;
+            document.getElementById('btn-entrada').disabled = turnoSinAsignar
+                || (!puedeEntrada && (currentTurno.siguiente_evento_sugerido || 'ENTRADA') === 'ENTRADA');
             document.getElementById('btn-salida').disabled = !turnoSinAsignar && (currentTurno.siguiente_evento_sugerido || 'ENTRADA') !== 'SALIDA';
             document.getElementById('dash-turno-sugerido').innerText = turnoSinAsignar
-                ? 'Registro permitido sin turno asignado'
+                ? 'Asigna un turno para registrar entrada'
                 : (puedeEntrada
                     ? `Siguiente registro sugerido: ${currentTurno.siguiente_evento_sugerido || 'ENTRADA'}`
                     : `Podrás registrar entrada desde ${formatDateTime(currentTurno.puede_checar_desde)}`);
@@ -587,8 +596,8 @@ async function cargarDashboard() {
             document.getElementById('dash-salida-programada').innerText = '--:--';
             document.getElementById('dash-salida-real').innerText = 'Sin registrar';
             document.getElementById('dash-ultimo-evento').innerText = 'No disponible';
-            document.getElementById('dash-turno-sugerido').innerText = esSupervisor ? 'Registro permitido sin turno asignado' : (data.message || 'No hay turnos disponibles');
-            document.getElementById('btn-entrada').disabled = !esSupervisor;
+            document.getElementById('dash-turno-sugerido').innerText = esSupervisor ? 'Asigna un turno para registrar entrada' : (data.message || 'No hay turnos disponibles');
+            document.getElementById('btn-entrada').disabled = true;
             document.getElementById('btn-salida').disabled = !esSupervisor;
         }
 
@@ -652,7 +661,17 @@ async function cargarBitacora() {
 
 function iniciarChecada(tipo) {
     const esSupervisor = (currentUser?.rol_nombre || '').toUpperCase().includes('SUPERVISOR');
-    const requiereSeleccionSitio = esSupervisor && (tipo === 'SALIDA' || !currentTurno || !currentTurno.turno_id || currentTurno.turno_id === 0);
+    if (tipo === 'ENTRADA' && esSupervisor && (!currentTurno || !currentTurno.turno_id)) {
+        alert('Necesitas un turno asignado para registrar entrada.');
+        return;
+    }
+    if (tipo === 'RONDIN' && !esSupervisor) {
+        alert('Solo los supervisores pueden registrar rondines.');
+        return;
+    }
+    const requiereSeleccionSitio = esSupervisor && (
+        tipo === 'RONDIN' || tipo === 'SALIDA' || !currentTurno || !currentTurno.turno_id || currentTurno.turno_id === 0
+    );
 
     if (!currentTurno && !esSupervisor) {
         alert('No tienes un turno asignado actualmente.');
@@ -671,7 +690,9 @@ function iniciarChecada(tipo) {
         facialDetectionScore: ''
     };
 
-    document.getElementById('modal-title').innerText = tipo === 'ENTRADA' ? 'Registro de entrada' : 'Registro de salida';
+    document.getElementById('modal-title').innerText = tipo === 'RONDIN'
+        ? 'Registro de rondín'
+        : (tipo === 'ENTRADA' ? 'Registro de entrada' : 'Registro de salida');
     document.getElementById('paso-sitio').style.display = 'none';
     document.getElementById('paso-gps').style.display = 'block';
     document.getElementById('paso-facial').style.display = 'none';
@@ -680,6 +701,7 @@ function iniciarChecada(tipo) {
     document.getElementById('facial-status').style.display = 'none';
     document.getElementById('btn-capturar').style.display = 'block';
     document.getElementById('btn-capturar').disabled = false;
+    document.getElementById('btn-finalizar-checada').textContent = tipo === 'RONDIN' ? 'Guardar rondín' : 'Guardar registro';
     document.getElementById('checada-comentario').value = '';
     document.getElementById('checada-modal').style.display = 'flex';
 
@@ -696,6 +718,9 @@ async function mostrarPasoSeleccionSitio() {
     document.getElementById('paso-facial').style.display = 'none';
     document.getElementById('paso-comentario').style.display = 'none';
     document.getElementById('paso-sitio').style.display = 'block';
+    document.getElementById('sitio-checada-instruccion').textContent = tipoChecadaActual === 'RONDIN'
+        ? 'Selecciona el sitio del rondín. Se validará tu ubicación contra su geocerca.'
+        : 'Selecciona el sitio donde estás registrando la checada.';
 
     const select = document.getElementById('select-sitio-checada');
     select.innerHTML = '<option value="">Cargando sitios...</option>';
@@ -747,11 +772,27 @@ function obtenerUbicacion() {
             datosChecada.longitud = position.coords.longitude;
 
             const esSupervisor = (currentUser?.rol_nombre || '').toUpperCase().includes('SUPERVISOR');
-            const sitioGeocerca = esSupervisor && sitioChecadaSeleccionado
+            const sitioGeocerca = (esSupervisor && sitioChecadaSeleccionado)
                 ? sitioChecadaSeleccionado
                 : (currentTurno && currentTurno.turno_id ? currentTurno : null);
 
-            if (!sitioGeocerca || !sitioGeocerca.latitud || !sitioGeocerca.longitud || !sitioGeocerca.radio_geocerca) {
+            if (tipoChecadaActual === 'RONDIN' && (
+                !sitioChecadaSeleccionado
+                || sitioChecadaSeleccionado.latitud === null
+                || sitioChecadaSeleccionado.latitud === ''
+                || sitioChecadaSeleccionado.longitud === null
+                || sitioChecadaSeleccionado.longitud === ''
+                || !Number.isFinite(Number(sitioChecadaSeleccionado.latitud))
+                || !Number.isFinite(Number(sitioChecadaSeleccionado.longitud))
+                || !Number.isFinite(Number(sitioChecadaSeleccionado.radio_geocerca))
+                || Number(sitioChecadaSeleccionado.radio_geocerca) <= 0
+            )) {
+                alert('El sitio seleccionado no tiene una geocerca válida configurada. Elige otro sitio o solicita que configuren su geocerca.');
+                cerrarModal();
+                return;
+            }
+
+            if (!sitioGeocerca || sitioGeocerca.latitud === null || sitioGeocerca.longitud === null || !sitioGeocerca.radio_geocerca) {
                 datosChecada.dentro_geocerca = 1;
                 actualizarEstadoGeocerca(true);
             } else {
@@ -762,7 +803,7 @@ function obtenerUbicacion() {
                     parseFloat(sitioGeocerca.longitud)
                 );
 
-                datosChecada.dentro_geocerca = distancia <= parseInt(sitioGeocerca.radio_geocerca, 10) ? 1 : 0;
+                datosChecada.dentro_geocerca = distancia <= Number(sitioGeocerca.radio_geocerca) ? 1 : 0;
                 actualizarEstadoGeocerca(datosChecada.dentro_geocerca === 1);
             }
 
@@ -777,7 +818,7 @@ function obtenerUbicacion() {
             }
         },
         () => {
-            alert('Debes permitir el acceso a tu ubicación para registrar entrada o salida.');
+            alert('Debes permitir el acceso a tu ubicación para registrar entrada, salida o rondín.');
             cerrarModal();
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -962,7 +1003,7 @@ async function finalizarChecada() {
         alert(error.message || 'Error de conexión.');
     } finally {
         btn.disabled = false;
-        btn.textContent = 'Guardar registro';
+        btn.textContent = tipoChecadaActual === 'RONDIN' ? 'Guardar rondín' : 'Guardar registro';
     }
 }
 

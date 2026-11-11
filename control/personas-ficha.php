@@ -137,6 +137,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $puestoOperativo = app_clean_text(app_post('puesto_operativo', ''));
         $turnoBase = app_clean_text(app_post('turno_base', ''));
         $servicioAsignado = app_clean_text(app_post('servicio_asignado', ''));
+        $nivelAcademico = app_clean_text(app_post('nivel_academico', ''));
+        $departamento = app_clean_text(app_post('departamento', ''));
+        $actividad = app_clean_text(app_post('actividad', ''));
+        $descripcionActividades = app_clean_text(app_post('descripcion_actividades', ''));
+        $portaArmas = app_post('porta_armas') === '1' ? 1 : 0;
         $infospeEstatus = app_clean_text(app_post('infospe_estatus', ''));
         $ceccegEstatus = app_clean_text(app_post('cecceg_estatus', ''));
         $sexo = app_clean_text(app_post('sexo', ''));
@@ -206,6 +211,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 puesto_operativo = " . personal_sql_value($conexion, $puestoOperativo) . ",
                 turno_base = " . personal_sql_value($conexion, $turnoBase) . ",
                 servicio_asignado = " . personal_sql_value($conexion, $servicioAsignado) . ",
+                nivel_academico = " . personal_sql_value($conexion, $nivelAcademico) . ",
+                departamento = " . personal_sql_value($conexion, $departamento) . ",
+                actividad = " . personal_sql_value($conexion, $actividad) . ",
+                descripcion_actividades = " . personal_sql_value($conexion, $descripcionActividades) . ",
+                porta_armas = " . $portaArmas . ",
                 infospe_estatus = " . personal_sql_value($conexion, $infospeEstatus) . ",
                 cecceg_estatus = " . personal_sql_value($conexion, $ceccegEstatus) . ",
                 sexo = " . personal_sql_value($conexion, $sexo) . ",
@@ -860,6 +870,29 @@ app_render_alerts($messages);
 	                        <div class="col-md-3 mb-3">
 	                            <label class="form-label">Servicio</label>
 	                            <input type="text" name="servicio_asignado" class="form-control" value="<?php echo app_h($personal['servicio_asignado'] ?? ''); ?>">
+	                        </div>
+	                        <div class="col-md-4 mb-3">
+	                            <label class="form-label">Nivel académico</label>
+	                            <input type="text" name="nivel_academico" class="form-control" value="<?php echo app_h($personal['nivel_academico'] ?? ''); ?>">
+	                        </div>
+	                        <div class="col-md-4 mb-3">
+	                            <label class="form-label">Departamento</label>
+	                            <input type="text" name="departamento" class="form-control" value="<?php echo app_h($personal['departamento'] ?? ''); ?>">
+	                        </div>
+	                        <div class="col-md-4 mb-3">
+	                            <label class="form-label">Actividad</label>
+	                            <input type="text" name="actividad" class="form-control" value="<?php echo app_h($personal['actividad'] ?? ''); ?>">
+	                        </div>
+	                        <div class="col-md-8 mb-3">
+	                            <label class="form-label">Descripción de actividades</label>
+	                            <textarea name="descripcion_actividades" class="form-control" rows="2"><?php echo app_h($personal['descripcion_actividades'] ?? ''); ?></textarea>
+	                        </div>
+	                        <div class="col-md-4 mb-3">
+	                            <label class="form-label">¿Porta armas?</label>
+	                            <select name="porta_armas" class="form-select">
+	                                <option value="0" <?php echo (int)($personal['porta_armas'] ?? 0) === 0 ? 'selected' : ''; ?>>No</option>
+	                                <option value="1" <?php echo (int)($personal['porta_armas'] ?? 0) === 1 ? 'selected' : ''; ?>>Sí</option>
+	                            </select>
 	                        </div>
 	                        <div class="col-md-6 mb-3">
 	                            <label class="form-label">INFOSPE</label>
