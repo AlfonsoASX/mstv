@@ -359,10 +359,10 @@ if ($period && app_get('format', '') === 'csv') {
 }
 
 $periods = app_db_all($conexion, "SELECT * FROM nomina_periodos WHERE estado <>'ABIERTO' ORDER BY fecha_inicio DESC, id DESC ");
-$perPageOptions = [10, 20, 30, 50, 100];
-$perPage = (int)app_get('per_page', 20);
+$perPageOptions = [100, 150, 200, 250, 300];
+$perPage = (int)app_get('per_page', 100);
 if (!in_array($perPage, $perPageOptions, true)) {
-    $perPage = 20;
+    $perPage = 100;
 }
 $totalRows = count($rows);
 $currentPage = max(1, (int)app_get('page', 1));
@@ -687,10 +687,17 @@ app_render_alerts($messages);
 
         <input type="search" class="form-control mb-3" data-table-search="#nomina-previo-table" placeholder="Buscar colaborador, rol o monto...">
 
+        <style>
+            .table-wrapper #nomina-previo-table thead th {
+                position: sticky;
+                top: 0;
+                z-index: 2;
+                background: #ebedf2;
+            }
+        </style>
         <div class="table-wrapper mb-3" style="max-height: 520px; overflow: auto; border: 1px solid #e5e7eb; border-radius: 8px;">
-            <div class="table-responsive" style="min-width: 1200px;">
-                <table class="table table-striped mb-0" id="nomina-previo-table">
-                    <thead style="position: sticky; top: 0; z-index: 1; background: #fff;">
+                <table class="table table-striped mb-0" id="nomina-previo-table" style="min-width: 1200px;">
+                    <thead>
                         <tr>
                             <th>Colaborador</th>
                             <th>Rol</th>
@@ -794,7 +801,6 @@ app_render_alerts($messages);
                         <?php endif; ?>
                     </tbody>
                 </table>
-            </div>
         </div>
 
         <?php if ($totalRows > 0): ?>
