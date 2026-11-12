@@ -607,6 +607,15 @@ function badgeEstado($estado) {
         .tabla-checadas td {
             vertical-align: middle;
         }
+        .tabla-checadas .table-responsive {
+            max-height: 65vh;
+            overflow: auto;
+        }
+        .tabla-checadas .table-responsive thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
         .filter-label {
             font-size: 0.8rem;
             text-transform: uppercase;
